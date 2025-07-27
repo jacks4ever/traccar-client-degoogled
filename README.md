@@ -1,6 +1,21 @@
-# [Traccar Client app](https://www.traccar.org/client)
+# [Traccar Client app - De-Googled Version](https://www.traccar.org/client)
 
-[![Get it on Google Play](http://www.tananaev.com/badges/google-play.svg)](https://play.google.com/store/apps/details?id=org.traccar.client) [![Download on the App Store](http://www.tananaev.com/badges/app-store.svg)](https://itunes.apple.com/app/traccar-client/id843156974)
+## 🚫 De-Googled Version
+
+This is a modified version of the Traccar Client app with **all Google dependencies removed**, making it suitable for:
+- Android phones without Google Play Services
+- Custom ROMs (LineageOS, GrapheneOS, etc.)
+- Privacy-focused devices like Unplugged phones
+- Users who want to avoid Google services
+
+**Key Changes:**
+- ❌ Removed Firebase (messaging, analytics, crashlytics)
+- ❌ Removed Google Play Services dependencies
+- ✅ Replaced push notifications with HTTP polling
+- ✅ Added custom error logging
+- ✅ Works on all Android devices, with or without Google services
+
+See [DEGOOGLE_CHANGES.md](DEGOOGLE_CHANGES.md) for detailed information about the modifications.
 
 ## Overview
 
