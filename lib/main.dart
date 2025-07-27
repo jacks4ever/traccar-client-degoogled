@@ -15,16 +15,28 @@ final messengerKey = GlobalKey<ScaffoldMessengerState>();
 
 Future<void> _requestLocationPermissions() async {
   try {
-    // Request location permissions using the background geolocation plugin
-    final status = await bg.BackgroundGeolocation.requestPermission();
-    developer.log('Location permission status: $status');
+    // Check current permission status first
+    final providerState = await bg.BackgroundGeolocation.providerState;
+    developer.log('Current location authorization status: ${providerState.status}');
     
-    // If permission is granted, also request background location permission
-    if (status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_ALWAYS || 
-        status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_WHEN_IN_USE) {
-      developer.log('Location permissions granted');
-    } else {
-      developer.log('Location permissions denied or not granted');
+    // If permissions are not granted, request them
+    if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED ||
+        providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED) {
+      
+      developer.log('Requesting location permissions...');
+      final status = await bg.BackgroundGeolocation.requestPermission();
+      developer.log('Location permission request result: $status');
+      
+      if (status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_ALWAYS) {
+        developer.log('Location permissions granted: Always');
+      } else if (status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_WHEN_IN_USE) {
+        developer.log('Location permissions granted: When In Use');
+      } else {
+        developer.log('Location permissions denied: $status');
+      }
+    } else if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_ALWAYS ||
+               providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_WHEN_IN_USE) {
+      developer.log('Location permissions already granted: ${providerState.status}');
     }
   } catch (error) {
     developer.log('Error requesting location permissions', error: error);

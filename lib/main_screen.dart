@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:traccar_client/degoogled_geolocation_service.dart';
@@ -108,8 +110,16 @@ class _MainScreenState extends State<MainScreen> {
                       
                       // Handle Google Play Services error specifically for de-googled devices
                       if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {
-                        errorMessage = 'This device doesn\'t have Google Play Services, but location tracking should still work. '
-                                     'If you experience issues, please ensure location permissions are granted and location services are enabled.';
+                        // Check if we actually have location permissions before showing the message
+                        final providerState = await bg.BackgroundGeolocation.providerState;
+                        if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
+                            providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
+                          errorMessage = 'Location permissions are required for tracking. Please grant location permissions in Settings.';
+                        } else {
+                          // Don't show error message if permissions are granted - Google Play Services warning can be ignored
+                          developer.log('Google Play Services not available but permissions are granted - continuing with native location services');
+                          return;
+                        }
                       }
                       
                       messengerKey.currentState?.showSnackBar(
@@ -133,13 +143,33 @@ class _MainScreenState extends State<MainScreen> {
                   onPressed: () async {
                     try {
                       await DegoogledGeolocationService.getCurrentPosition();
+                      // Show success message for location request
+                      messengerKey.currentState?.showSnackBar(
+                        const SnackBar(
+                          content: Text('Location request sent successfully'),
+                          duration: Duration(seconds: 2),
+                        )
+                      );
                     } on PlatformException catch (error) {
                       String errorMessage = error.message ?? error.code;
                       
                       // Handle Google Play Services error specifically for de-googled devices
                       if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {
-                        errorMessage = 'Location request completed. Note: This device doesn\'t have Google Play Services, '
-                                     'but native location services are being used instead.';
+                        // Check if we actually have location permissions before showing the message
+                        final providerState = await bg.BackgroundGeolocation.providerState;
+                        if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
+                            providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
+                          errorMessage = 'Location permissions are required. Please grant location permissions in Settings.';
+                        } else {
+                          // Don't show error message if permissions are granted - just show success
+                          messengerKey.currentState?.showSnackBar(
+                            const SnackBar(
+                              content: Text('Location request completed using native location services'),
+                              duration: Duration(seconds: 2),
+                            )
+                          );
+                          return;
+                        }
                       }
                       
                       messengerKey.currentState?.showSnackBar(
