@@ -77,6 +77,14 @@ class Preferences {
     final locationUpdateInterval = (instance.getInt(interval) ?? 0) * 1000;
     final fastestLocationUpdateInterval = (instance.getInt(fastestInterval) ?? 30) * 1000;
     final heartbeatInterval = instance.getInt(heartbeat) ?? 0;
+    
+    // Format URL properly for Traccar protocol
+    final serverUrl = _formatUrl(instance.getString(url));
+    final deviceId = instance.getString(id);
+    final traccarUrl = serverUrl != null && deviceId != null 
+        ? '$serverUrl?id=$deviceId' 
+        : null;
+    
     return bg.Config(
       isMoving: true,
       enableHeadless: true,
@@ -88,12 +96,16 @@ class Preferences {
         'low' => bg.Config.DESIRED_ACCURACY_LOW,
         _ => bg.Config.DESIRED_ACCURACY_MEDIUM,
       },
-      autoSync: false,
-      url: _formatUrl(instance.getString(url)),
-      params: {
-        'device_id': instance.getString(id),
+      autoSync: true, // Enable auto sync for better reliability
+      url: traccarUrl,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
       },
-      distanceFilter: isHighestAccuracy ? 0 : instance.getInt(distance)?.toDouble(),
+      params: {
+        'id': deviceId,
+      },
+      distanceFilter: isHighestAccuracy ? 0 : (instance.getInt(distance) ?? 75).toDouble(),
       locationUpdateInterval: isHighestAccuracy ? 0 : (locationUpdateInterval > 0 ? locationUpdateInterval : null),
       heartbeatInterval: heartbeatInterval > 0 ? heartbeatInterval : null,
       maxRecordsToPersist: instance.getBool(buffer) != false ? -1 : 1,
@@ -116,6 +128,8 @@ class Preferences {
         priority: bg.Config.NOTIFICATION_PRIORITY_LOW,
       ),
       showsBackgroundLocationIndicator: false,
+      // Add debug flag to help with license issues
+      debug: true,
     );
   }
 
@@ -127,28 +141,18 @@ class Preferences {
   }
 
   static String _locationTemplate() {
+    // Use Traccar's expected JSON format
     return '''{
+      "id": "${instance.getString(id)}",
+      "lat": <%= latitude %>,
+      "lon": <%= longitude %>,
       "timestamp": "<%= timestamp %>",
-      "coords": {
-        "latitude": <%= latitude %>,
-        "longitude": <%= longitude %>,
-        "accuracy": <%= accuracy %>,
-        "speed": <%= speed %>,
-        "heading": <%= heading %>,
-        "altitude": <%= altitude %>
-      },
-      "is_moving": <%= is_moving %>,
-      "odometer": <%= odometer %>,
-      "event": "<%= event %>",
-      "battery": {
-        "level": <%= battery.level %>,
-        "is_charging": <%= battery.is_charging %>
-      },
-      "activity": {
-        "type": "<%= activity.type %>"
-      },
-      "extras": {},
-      "_": "&id=${instance.getString(id)}&lat=<%= latitude %>&lon=<%= longitude %>&timestamp=<%= timestamp %>&"
+      "accuracy": <%= accuracy %>,
+      "speed": <%= speed %>,
+      "bearing": <%= heading %>,
+      "altitude": <%= altitude %>,
+      "batt": <%= battery.level %>,
+      "charge": <%= battery.is_charging %>
     }'''.split('\n').map((line) => line.trimLeft()).join();
   }
 

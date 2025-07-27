@@ -29,22 +29,49 @@ class _MainScreenState extends State<MainScreen> {
     _initState();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh state when returning from other screens
+    _refreshState();
+  }
+
   void _initState() async {
     final state = await bg.BackgroundGeolocation.state;
-    setState(() {
-      trackingEnabled = state.enabled;
-      isMoving = state.isMoving;
-    });
-    bg.BackgroundGeolocation.onEnabledChange((bool enabled) {
+    if (mounted) {
       setState(() {
-        trackingEnabled = enabled;
+        trackingEnabled = state.enabled;
+        isMoving = state.isMoving;
       });
+    }
+    bg.BackgroundGeolocation.onEnabledChange((bool enabled) {
+      if (mounted) {
+        setState(() {
+          trackingEnabled = enabled;
+        });
+      }
     });
     bg.BackgroundGeolocation.onMotionChange((bg.Location location) {
-      setState(() {
-        isMoving = location.isMoving;
-      });
+      if (mounted) {
+        setState(() {
+          isMoving = location.isMoving;
+        });
+      }
     });
+  }
+
+  void _refreshState() async {
+    try {
+      final state = await bg.BackgroundGeolocation.state;
+      if (mounted) {
+        setState(() {
+          trackingEnabled = state.enabled;
+          isMoving = state.isMoving;
+        });
+      }
+    } catch (error) {
+      developer.log('Error refreshing state', error: error);
+    }
   }
 
   Future<void> _checkBatteryOptimizations(BuildContext context) async {
@@ -99,29 +126,73 @@ class _MainScreenState extends State<MainScreen> {
               activeTrackColor: isMoving == false ? Theme.of(context).colorScheme.error :  null,
               onChanged: (bool value) async {
                 if (await PasswordService.authenticate(context) && mounted) {
-                  if (value) {
-                    try {
+                  try {
+                    if (value) {
                       await DegoogledGeolocationService.startTracking();
                       if (mounted) {
+                        setState(() {
+                          trackingEnabled = true;
+                        });
                         _checkBatteryOptimizations(context);
                       }
-                    } on PlatformException catch (error) {
-                      String errorMessage = error.message ?? error.code;
-                      
-                      // Handle Google Play Services error specifically for de-googled devices
-                      if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {
-                        // Check if we actually have location permissions before showing the message
-                        final providerState = await bg.BackgroundGeolocation.providerState;
-                        if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
-                            providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
-                          errorMessage = 'Location permissions are required for tracking. Please grant location permissions in Settings.';
-                        } else {
-                          // Don't show error message if permissions are granted - Google Play Services warning can be ignored
-                          developer.log('Google Play Services not available but permissions are granted - continuing with native location services');
-                          return;
-                        }
+                    } else {
+                      await DegoogledGeolocationService.stopTracking();
+                      if (mounted) {
+                        setState(() {
+                          trackingEnabled = false;
+                        });
                       }
-                      
+                    }
+                  } on PlatformException catch (error) {
+                    String errorMessage = error.message ?? error.code;
+                    
+                    // Handle license validation error
+                    if (errorMessage.contains('LICENSE VALIDATION ERROR') || errorMessage.contains('license key')) {
+                      developer.log('License validation error - using free version functionality');
+                      // For free version, try to continue anyway
+                      try {
+                        if (value) {
+                          await DegoogledGeolocationService.startTracking();
+                          if (mounted) {
+                            setState(() {
+                              trackingEnabled = true;
+                            });
+                            _checkBatteryOptimizations(context);
+                          }
+                        } else {
+                          await DegoogledGeolocationService.stopTracking();
+                          if (mounted) {
+                            setState(() {
+                              trackingEnabled = false;
+                            });
+                          }
+                        }
+                        return;
+                      } catch (e) {
+                        errorMessage = 'Failed to start tracking. Please check your settings and permissions.';
+                      }
+                    }
+                    
+                    // Handle Google Play Services error specifically for de-googled devices
+                    if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {
+                      // Check if we actually have location permissions before showing the message
+                      final providerState = await bg.BackgroundGeolocation.providerState;
+                      if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
+                          providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
+                        errorMessage = 'Location permissions are required for tracking. Please grant location permissions in Settings.';
+                      } else {
+                        // Don't show error message if permissions are granted - Google Play Services warning can be ignored
+                        developer.log('Google Play Services not available but permissions are granted - continuing with native location services');
+                        if (mounted) {
+                          setState(() {
+                            trackingEnabled = value;
+                          });
+                        }
+                        return;
+                      }
+                    }
+                    
+                    if (mounted) {
                       messengerKey.currentState?.showSnackBar(
                         SnackBar(
                           content: Text(errorMessage),
@@ -129,8 +200,16 @@ class _MainScreenState extends State<MainScreen> {
                         )
                       );
                     }
-                  } else {
-                    await DegoogledGeolocationService.stopTracking();
+                  } catch (error) {
+                    developer.log('Unexpected error in tracking toggle', error: error);
+                    if (mounted) {
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to ${value ? 'start' : 'stop'} tracking: ${error.toString()}'),
+                          duration: const Duration(seconds: 5),
+                        )
+                      );
+                    }
                   }
                 }
               },

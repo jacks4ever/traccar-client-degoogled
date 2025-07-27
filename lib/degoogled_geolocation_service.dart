@@ -31,6 +31,20 @@ class DegoogledGeolocationService {
     } catch (error) {
       developer.log('Failed to initialize geolocation service', error: error);
       
+      // Handle license validation errors
+      if (error.toString().contains('LICENSE VALIDATION ERROR') || 
+          error.toString().contains('license key')) {
+        developer.log('License validation error - continuing with free version');
+        // For free version, try to continue with basic functionality
+        try {
+          await _initializeWithBasicConfig();
+          _isInitialized = true;
+          return;
+        } catch (e) {
+          developer.log('Failed to initialize with basic config', error: e);
+        }
+      }
+      
       // Check if the error is related to Google Play Services
       if (error.toString().contains('Google Play Services') || 
           error.toString().contains('HMS are installed')) {
@@ -49,6 +63,42 @@ class DegoogledGeolocationService {
         rethrow;
       }
     }
+  }
+
+  static Future<void> _initializeWithBasicConfig() async {
+    // Create a very basic configuration for free version
+    final config = bg.Config(
+      isMoving: true,
+      enableHeadless: false, // Disable headless for free version
+      stopOnTerminate: false,
+      startOnBoot: true,
+      desiredAccuracy: bg.Config.DESIRED_ACCURACY_MEDIUM,
+      autoSync: true,
+      url: Preferences.instance.getString(Preferences.url),
+      params: {
+        'id': Preferences.instance.getString(Preferences.id),
+      },
+      distanceFilter: (Preferences.instance.getInt(Preferences.distance) ?? 75).toDouble(),
+      locationUpdateInterval: (Preferences.instance.getInt(Preferences.interval) ?? 300) * 1000,
+      maxRecordsToPersist: 10, // Limit for free version
+      logLevel: bg.Config.LOG_LEVEL_ERROR, // Reduce logging
+      locationTemplate: _locationTemplate(),
+      disableElasticity: true,
+      notification: bg.Notification(
+        smallIcon: 'drawable/ic_stat_notify',
+        priority: bg.Config.NOTIFICATION_PRIORITY_LOW,
+      ),
+      showsBackgroundLocationIndicator: false,
+      debug: false, // Disable debug for free version
+    );
+
+    await bg.BackgroundGeolocation.ready(config);
+    
+    bg.BackgroundGeolocation.onEnabledChange(onEnabledChange);
+    bg.BackgroundGeolocation.onMotionChange(onMotionChange);
+    bg.BackgroundGeolocation.onLocation(onLocation, (bg.LocationError error) {
+      developer.log('Location error', error: error);
+    });
   }
 
   static Future<void> _initializeNativeLocationServices() async {
@@ -123,6 +173,24 @@ class DegoogledGeolocationService {
       await bg.BackgroundGeolocation.start();
       developer.log('Tracking started successfully');
     } catch (error) {
+      developer.log('Error starting tracking', error: error);
+      
+      // Handle license validation errors
+      if (error.toString().contains('LICENSE VALIDATION ERROR') || 
+          error.toString().contains('license key')) {
+        developer.log('License validation error - attempting to start with free version');
+        
+        try {
+          // Try to reconfigure with basic settings and start
+          await _initializeWithBasicConfig();
+          await bg.BackgroundGeolocation.start();
+          developer.log('Tracking started with free version configuration');
+          return;
+        } catch (e) {
+          developer.log('Failed to start tracking with free version', error: e);
+        }
+      }
+      
       if (error.toString().contains('Google Play Services') || 
           error.toString().contains('HMS are installed')) {
         developer.log('Google Play Services warning ignored, attempting to start with native services');
