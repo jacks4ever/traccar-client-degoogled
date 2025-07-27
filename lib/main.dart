@@ -5,12 +5,31 @@ import 'package:rate_my_app/rate_my_app.dart';
 import 'package:traccar_client/degoogled_geolocation_service.dart';
 import 'package:traccar_client/push_service.dart';
 import 'package:traccar_client/quick_actions.dart';
+import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 
 import 'l10n/app_localizations.dart';
 import 'main_screen.dart';
 import 'preferences.dart';
 
 final messengerKey = GlobalKey<ScaffoldMessengerState>();
+
+Future<void> _requestLocationPermissions() async {
+  try {
+    // Request location permissions using the background geolocation plugin
+    final status = await bg.BackgroundGeolocation.requestPermission();
+    developer.log('Location permission status: $status');
+    
+    // If permission is granted, also request background location permission
+    if (status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_ALWAYS || 
+        status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_WHEN_IN_USE) {
+      developer.log('Location permissions granted');
+    } else {
+      developer.log('Location permissions denied or not granted');
+    }
+  } catch (error) {
+    developer.log('Error requesting location permissions', error: error);
+  }
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +45,10 @@ void main() async {
   await Preferences.migrate();
   await DegoogledGeolocationService.init();
   await PushService.init();
+  
+  // Request location permissions on first launch
+  await _requestLocationPermissions();
+  
   runApp(const MainApp());
 }
 
