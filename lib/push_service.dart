@@ -26,8 +26,8 @@ class PushService {
     });
     
     // Check if geolocation is already enabled and start polling
-    final enabled = await bg.BackgroundGeolocation.enabled;
-    if (enabled) {
+    final state = await bg.BackgroundGeolocation.state;
+    if (state.enabled) {
       _startCommandPolling();
     }
   }
