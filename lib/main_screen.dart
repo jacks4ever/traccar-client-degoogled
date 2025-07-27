@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:traccar_client/degoogled_geolocation_service.dart';
 import 'package:traccar_client/main.dart';
 import 'package:traccar_client/password_service.dart';
 import 'package:traccar_client/preferences.dart';
@@ -98,15 +99,28 @@ class _MainScreenState extends State<MainScreen> {
                 if (await PasswordService.authenticate(context) && mounted) {
                   if (value) {
                     try {
-                      await bg.BackgroundGeolocation.start();
+                      await DegoogledGeolocationService.startTracking();
                       if (mounted) {
                         _checkBatteryOptimizations(context);
                       }
                     } on PlatformException catch (error) {
-                      messengerKey.currentState?.showSnackBar(SnackBar(content: Text(error.message ?? error.code)));
+                      String errorMessage = error.message ?? error.code;
+                      
+                      // Handle Google Play Services error specifically for de-googled devices
+                      if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {
+                        errorMessage = 'This device doesn\'t have Google Play Services, but location tracking should still work. '
+                                     'If you experience issues, please ensure location permissions are granted and location services are enabled.';
+                      }
+                      
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text(errorMessage),
+                          duration: const Duration(seconds: 5),
+                        )
+                      );
                     }
                   } else {
-                    bg.BackgroundGeolocation.stop();
+                    await DegoogledGeolocationService.stopTracking();
                   }
                 }
               },
@@ -118,9 +132,22 @@ class _MainScreenState extends State<MainScreen> {
                 FilledButton.tonal(
                   onPressed: () async {
                     try {
-                      await bg.BackgroundGeolocation.getCurrentPosition(samples: 1, persist: true, extras: {'manual': true});
+                      await DegoogledGeolocationService.getCurrentPosition();
                     } on PlatformException catch (error) {
-                      messengerKey.currentState?.showSnackBar(SnackBar(content: Text(error.message ?? error.code)));
+                      String errorMessage = error.message ?? error.code;
+                      
+                      // Handle Google Play Services error specifically for de-googled devices
+                      if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {
+                        errorMessage = 'Location request completed. Note: This device doesn\'t have Google Play Services, '
+                                     'but native location services are being used instead.';
+                      }
+                      
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text(errorMessage),
+                          duration: const Duration(seconds: 3),
+                        )
+                      );
                     }
                   },
                   child: Text(AppLocalizations.of(context)!.locationButton),

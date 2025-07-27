@@ -6,7 +6,7 @@ import 'package:flutter_background_geolocation/flutter_background_geolocation.da
 import 'package:traccar_client/main.dart';
 import 'package:traccar_client/password_service.dart';
 import 'package:traccar_client/qr_code_screen.dart';
-import 'package:wakelock_partial_android/wakelock_partial_android.dart';
+
 
 import 'l10n/app_localizations.dart';
 import 'preferences.dart';
@@ -213,10 +213,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 if (value) {
                   final state = await bg.BackgroundGeolocation.state;
                   if (state.isMoving == true) {
-                    WakelockPartialAndroid.acquire();
+                    // Wakelock functionality removed for degoogled compatibility
                   }
                 } else {
-                  WakelockPartialAndroid.release();
+                  // Wakelock functionality removed for degoogled compatibility
                 }
                 setState(() {});
               },

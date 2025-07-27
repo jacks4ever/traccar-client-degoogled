@@ -4,7 +4,7 @@ publish_to: 'none'
 version: 9.5.2+106
 
 environment:
-  sdk: ^3.7.2
+  sdk: ^3.6.0
 
 dependencies:
   flutter:
@@ -17,15 +17,14 @@ dependencies:
   quick_actions: ^1.1.0
   rate_my_app: ^2.3.2
   shared_preferences_android: ^2.4.10
-  wakelock_partial_android: ^1.0.1
-  mobile_scanner: ^7.0.1
+  mobile_scanner: ^6.0.0
   flutter_secure_storage: ^9.2.4
   http: ^1.2.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+  flutter_lints: ^5.0.0
 
 flutter:
   uses-material-design: true
