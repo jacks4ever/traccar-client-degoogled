@@ -1,6 +1,6 @@
 # De-Googled Traccar Client Changes
 
-This document outlines the changes made to remove Google dependencies from the Traccar client app, making it suitable for Android phones like Unplugged that don't have Google Play Services.
+This document outlines the changes made to remove Google dependencies from the Traccar client app, making it suitable for Android phones like Unplugged that don't have Google Play Services. This version is **Android-only** for maximum compatibility with de-googled devices.
 
 ## Changes Made
 
@@ -9,8 +9,8 @@ This document outlines the changes made to remove Google dependencies from the T
 **Files Removed:**
 - `lib/firebase_options.dart` - Firebase configuration
 - `android/app/google-services.json` - Google Services configuration for Android
-- `ios/Runner/GoogleService-Info.plist` - Google Services configuration for iOS
 - `firebase.json` - Firebase project configuration
+- `ios/` - Entire iOS directory (Android-only version)
 
 **Dependencies Removed from `pubspec.yaml`:**
 - `firebase_core: ^3.15.2`
