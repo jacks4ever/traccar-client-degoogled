@@ -20,9 +20,22 @@ This is a modified version of the Traccar Client app with **all Google dependenc
 
 ## Download
 
-📥 **[Download Latest APK](../../releases/download/v9.5.2-degoogled/traccar-client-degoogled-v9.5.2.apk)** (38.6MB) - Ready to install on any Android device
+🔧 **[Download Fixed APK](../../releases/download/v9.5.2-fixed/traccar-client-degoogled-v9.5.2-universal.apk)** (38.7MB) - **Installation issues fixed!**
 
-🔗 **[View All Releases](../../releases)** - See release notes and previous versions
+📱 **Multiple APK options available:**
+- **Universal APK** (38.7MB) - Recommended for most users
+- **ARM64 APK** (16.2MB) - For modern 64-bit devices  
+- **ARM32 APK** (15.4MB) - For older 32-bit devices
+- **x86_64 APK** (16.7MB) - For x86 devices/emulators
+
+🔗 **[View All Releases](../../releases)** - See release notes and choose your APK
+
+### Installation Troubleshooting
+If you get "App not installed" or "package appears to be invalid" errors:
+1. Try the **Universal APK** first (works on all devices)
+2. Enable **Unknown Sources** in Settings → Security
+3. Clear any previous installation attempts
+4. Restart your device and try again
 
 See [DEGOOGLE_CHANGES.md](DEGOOGLE_CHANGES.md) for detailed technical information.
 
