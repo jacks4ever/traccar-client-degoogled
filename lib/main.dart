@@ -1,7 +1,5 @@
 import 'dart:developer' as developer;
 
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/material.dart';
 import 'package:rate_my_app/rate_my_app.dart';
 import 'package:traccar_client/geolocation_service.dart';
@@ -16,8 +14,14 @@ final messengerKey = GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  
+  // Set up custom error handling instead of Firebase Crashlytics
+  FlutterError.onError = (FlutterErrorDetails details) {
+    developer.log('Flutter Error: ${details.exception}', 
+                  error: details.exception, 
+                  stackTrace: details.stack);
+  };
+  
   await Preferences.init();
   await Preferences.migrate();
   await GeolocationService.init();
