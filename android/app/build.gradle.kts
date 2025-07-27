@@ -35,27 +35,23 @@ android {
         applicationId = "org.traccar.client"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 21  // Android 5.0 for better compatibility
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     signingConfigs {
-        if (keystorePropertiesFile.exists()) {
-            create("release") {
-                keyAlias = keystoreProperties["keyAlias"] as String
-                keyPassword = keystoreProperties["keyPassword"] as String
-                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-                storePassword = keystoreProperties["storePassword"] as String
-            }
+        create("release") {
+            keyAlias = "debugkey"
+            keyPassword = "android"
+            storeFile = file("../../debug.keystore")
+            storePassword = "android"
         }
     }
     buildTypes {
         release {
-            if (keystorePropertiesFile.exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            signingConfig = signingConfigs.getByName("release")
             isShrinkResources = false
         }
     }
