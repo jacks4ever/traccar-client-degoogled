@@ -20,7 +20,9 @@ This is a modified version of the Traccar Client app with **all Google dependenc
 
 ## Download
 
-📥 **[Download Latest APK](../../releases/latest)** - Ready to install on any Android device
+📥 **[Download Latest APK](../../releases/download/v9.5.2-degoogled/traccar-client-degoogled-v9.5.2.apk)** (38.6MB) - Ready to install on any Android device
+
+🔗 **[View All Releases](../../releases)** - See release notes and previous versions
 
 See [DEGOOGLE_CHANGES.md](DEGOOGLE_CHANGES.md) for detailed technical information.
 
