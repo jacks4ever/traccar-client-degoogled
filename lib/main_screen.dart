@@ -262,6 +262,31 @@ class _MainScreenState extends State<MainScreen> {
                   child: Text(AppLocalizations.of(context)!.locationButton),
                 ),
                 FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      await DegoogledGeolocationService.testServerConnection();
+                      if (mounted) {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('Server connection test completed successfully'),
+                            duration: Duration(seconds: 2),
+                          )
+                        );
+                      }
+                    } catch (error) {
+                      if (mounted) {
+                        messengerKey.currentState?.showSnackBar(
+                          SnackBar(
+                            content: Text('Server connection failed: ${error.toString()}'),
+                            duration: const Duration(seconds: 5),
+                          )
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Test Server'),
+                ),
+                FilledButton.tonal(
                   onPressed: () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const StatusScreen()));
                   },

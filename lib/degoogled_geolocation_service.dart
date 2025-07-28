@@ -73,10 +73,10 @@ class DegoogledGeolocationService {
       stopOnTerminate: false,
       startOnBoot: true,
       desiredAccuracy: bg.Config.DESIRED_ACCURACY_MEDIUM,
-      autoSync: true,
+      autoSync: false, // Use manual sync like original
       url: Preferences.instance.getString(Preferences.url),
       params: {
-        'id': Preferences.instance.getString(Preferences.id),
+        'device_id': Preferences.instance.getString(Preferences.id),
       },
       distanceFilter: (Preferences.instance.getInt(Preferences.distance) ?? 75).toDouble(),
       locationUpdateInterval: (Preferences.instance.getInt(Preferences.interval) ?? 300) * 1000,
@@ -109,7 +109,7 @@ class DegoogledGeolocationService {
       stopOnTerminate: false,
       startOnBoot: true,
       desiredAccuracy: bg.Config.DESIRED_ACCURACY_MEDIUM,
-      autoSync: false,
+      autoSync: false, // Use manual sync like original
       url: Preferences.instance.getString(Preferences.url),
       params: {
         'device_id': Preferences.instance.getString(Preferences.id),
@@ -221,19 +221,38 @@ class DegoogledGeolocationService {
 
   static Future<void> getCurrentPosition() async {
     try {
-      await bg.BackgroundGeolocation.getCurrentPosition(
+      developer.log('Requesting current position...');
+      final location = await bg.BackgroundGeolocation.getCurrentPosition(
         samples: 1, 
         persist: true, 
         extras: {'manual': true}
       );
+      developer.log('Current position obtained: lat=${location.coords.latitude}, lon=${location.coords.longitude}');
     } catch (error) {
       if (error.toString().contains('Google Play Services') || 
           error.toString().contains('HMS are installed')) {
         developer.log('Google Play Services warning ignored for location request');
         // The location might still have been obtained despite the warning
       } else {
+        developer.log('Failed to get current position', error: error);
         rethrow;
       }
+    }
+  }
+
+  static Future<void> testServerConnection() async {
+    try {
+      developer.log('Testing server connection...');
+      final state = await bg.BackgroundGeolocation.state;
+      developer.log('Server URL: ${state.url}');
+      developer.log('Device ID: ${Preferences.instance.getString(Preferences.id)}');
+      
+      // Force a sync to test server connection
+      await bg.BackgroundGeolocation.sync();
+      developer.log('Server connection test completed');
+    } catch (error) {
+      developer.log('Server connection test failed', error: error);
+      rethrow;
     }
   }
 
@@ -263,18 +282,26 @@ class DegoogledGeolocationService {
   }
 
   static Future<void> onLocation(bg.Location location) async {
+    developer.log('Location received: lat=${location.coords.latitude}, lon=${location.coords.longitude}, timestamp=${location.timestamp}');
+    
     if (_shouldDelete(location)) {
       try {
         await bg.BackgroundGeolocation.destroyLocation(location.uuid);
+        developer.log('Location deleted due to filtering');
       } catch(error) {
         developer.log('Failed to delete location', error: error);
       }
     } else {
       LocationCache.set(location);
+      developer.log('Location cached, attempting to sync to server');
       try {
         await bg.BackgroundGeolocation.sync();
+        developer.log('Location sync completed successfully');
       } catch (error) {
-        developer.log('Failed to send location', error: error);
+        developer.log('Failed to send location to server', error: error);
+        // Try to get more details about the sync failure
+        final state = await bg.BackgroundGeolocation.state;
+        developer.log('Current config - URL: ${state.url}, enabled: ${state.enabled}');
       }
     }
   }
