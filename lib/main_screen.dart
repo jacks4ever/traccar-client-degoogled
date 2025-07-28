@@ -310,15 +310,111 @@ class _MainScreenState extends State<MainScreen> {
                       );
                     } catch (error) {
                       developer.log('❌ Force location request failed', error: error);
+                      
+                      String errorMessage = 'Force location failed: ${error.toString()}';
+                      
+                      // Decode LocationError codes for better user feedback
+                      if (error.toString().contains('LocationError code: 1')) {
+                        errorMessage = 'Location Error: Permission denied or location services disabled. Please check:\n• Location permissions are granted\n• GPS/Location services are enabled\n• App has background location access';
+                      } else if (error.toString().contains('LocationError code: 2')) {
+                        errorMessage = 'Location Error: Network error or location unavailable';
+                      } else if (error.toString().contains('LocationError code: 3')) {
+                        errorMessage = 'Location Error: Location request timeout';
+                      }
+                      
                       messengerKey.currentState?.showSnackBar(
                         SnackBar(
-                          content: Text('Force location failed: ${error.toString()}'),
-                          duration: const Duration(seconds: 5),
+                          content: Text(errorMessage),
+                          duration: const Duration(seconds: 8),
                         )
                       );
                     }
                   },
                   child: const Text('Force Location'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      developer.log('🔍 CHECKING PERMISSIONS AND LOCATION SERVICES');
+                      
+                      // Check provider state (permissions and GPS status)
+                      final providerState = await bg.BackgroundGeolocation.providerState;
+                      developer.log('Provider state: ${providerState.status}');
+                      developer.log('GPS enabled: ${providerState.gps}');
+                      developer.log('Network enabled: ${providerState.network}');
+                      
+                      // Check background geolocation state
+                      final state = await bg.BackgroundGeolocation.state;
+                      developer.log('BG Geolocation enabled: ${state.enabled}');
+                      developer.log('Tracking mode: ${state.trackingMode}');
+                      developer.log('URL configured: ${state.url}');
+                      
+                      // Create status message
+                      String statusMessage = 'Permission & Service Status:\n';
+                      statusMessage += '• GPS: ${providerState.gps ? "✅ Enabled" : "❌ Disabled"}\n';
+                      statusMessage += '• Network: ${providerState.network ? "✅ Enabled" : "❌ Disabled"}\n';
+                      statusMessage += '• BG Service: ${state.enabled ? "✅ Running" : "❌ Stopped"}\n';
+                      
+                      // Decode permission status
+                      switch (providerState.status) {
+                        case bg.ProviderChangeEvent.AUTHORIZATION_STATUS_ALWAYS:
+                          statusMessage += '• Permissions: ✅ Always allowed';
+                          break;
+                        case bg.ProviderChangeEvent.AUTHORIZATION_STATUS_WHEN_IN_USE:
+                          statusMessage += '• Permissions: ⚠️ Only when in use';
+                          break;
+                        case bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED:
+                          statusMessage += '• Permissions: ❌ Denied';
+                          break;
+                        case bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED:
+                          statusMessage += '• Permissions: ❓ Not determined';
+                          break;
+                        default:
+                          statusMessage += '• Permissions: Unknown (${providerState.status})';
+                      }
+                      
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text(statusMessage),
+                          duration: const Duration(seconds: 10),
+                        )
+                      );
+                      
+                    } catch (error) {
+                      developer.log('❌ Failed to check permissions', error: error);
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to check status: ${error.toString()}'),
+                          duration: const Duration(seconds: 5),
+                        )
+                      );
+                    }
+                  },
+                  child: const Text('Check Status'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      developer.log('🔐 Manual permission request triggered');
+                      await DegoogledGeolocationService.requestLocationPermissions();
+                      
+                      messengerKey.currentState?.showSnackBar(
+                        const SnackBar(
+                          content: Text('Permission request completed - check status'),
+                          duration: Duration(seconds: 3),
+                        )
+                      );
+                    } catch (error) {
+                      developer.log('❌ Permission request failed', error: error);
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text('Permission request failed: ${error.toString()}'),
+                          duration: const Duration(seconds: 5),
+                        )
+                      );
+                    }
+                  },
+                  child: const Text('Request Perms'),
                 ),
                 FilledButton.tonal(
                   onPressed: () {

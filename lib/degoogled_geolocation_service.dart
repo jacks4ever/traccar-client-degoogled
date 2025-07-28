@@ -277,6 +277,24 @@ class DegoogledGeolocationService {
 
   static bool get hasGooglePlayServices => _hasGooglePlayServices;
 
+  static Future<void> requestLocationPermissions() async {
+    try {
+      developer.log('🔐 Requesting location permissions...');
+      
+      // Request location permission
+      final status = await bg.BackgroundGeolocation.requestPermission();
+      developer.log('Permission request result: $status');
+      
+      // Check the result
+      final providerState = await bg.BackgroundGeolocation.providerState;
+      developer.log('After permission request - GPS: ${providerState.gps}, Network: ${providerState.network}, Status: ${providerState.status}');
+      
+    } catch (error) {
+      developer.log('❌ Failed to request permissions', error: error);
+      rethrow;
+    }
+  }
+
   // Original callback methods from GeolocationService
   static Future<void> onEnabledChange(bool enabled) async {
     developer.log('🔄 ENABLED CHANGE CALLBACK: enabled=$enabled');
