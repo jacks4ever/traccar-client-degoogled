@@ -27,6 +27,68 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _initState();
+    _checkPermissionsOnStart();
+  }
+
+  Future<void> _checkPermissionsOnStart() async {
+    // Wait a bit for the UI to settle
+    await Future.delayed(const Duration(seconds: 2));
+    
+    try {
+      final providerState = await bg.BackgroundGeolocation.providerState;
+      
+      // If permissions are denied, show guidance dialog
+      if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
+          providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
+        
+        if (mounted) {
+          _showPermissionGuidanceDialog();
+        }
+      }
+    } catch (error) {
+      developer.log('Error checking permissions on start', error: error);
+    }
+  }
+
+  void _showPermissionGuidanceDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Location Permissions Required'),
+          content: const Text(
+            'This app needs location permissions to track your position.\n\n'
+            'Please:\n'
+            '1. Tap "Open Settings" below\n'
+            '2. Go to Permissions → Location\n'
+            '3. Select "Allow all the time"\n'
+            '4. Return to the app and try again'
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Show instructions to manually open settings
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please go to Android Settings → Apps → Traccar Client → Permissions → Location → Allow all the time'),
+                    duration: Duration(seconds: 8),
+                  ),
+                );
+              },
+              child: const Text('Got It'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
