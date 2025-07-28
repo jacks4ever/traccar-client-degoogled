@@ -287,6 +287,40 @@ class _MainScreenState extends State<MainScreen> {
                   child: const Text('Test Server'),
                 ),
                 FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      developer.log('🔍 MANUAL LOCATION REQUEST - Force triggering location update');
+                      
+                      // Check current state first
+                      final state = await bg.BackgroundGeolocation.state;
+                      developer.log('Current state before force location: enabled=${state.enabled}, tracking=${state.trackingMode}');
+                      
+                      // Force a location request
+                      await bg.BackgroundGeolocation.getCurrentPosition(
+                        samples: 3, 
+                        persist: true, 
+                        extras: {'manual_force': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+                      );
+                      
+                      messengerKey.currentState?.showSnackBar(
+                        const SnackBar(
+                          content: Text('Force location request completed - check logs'),
+                          duration: Duration(seconds: 3),
+                        )
+                      );
+                    } catch (error) {
+                      developer.log('❌ Force location request failed', error: error);
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text('Force location failed: ${error.toString()}'),
+                          duration: const Duration(seconds: 5),
+                        )
+                      );
+                    }
+                  },
+                  child: const Text('Force Location'),
+                ),
+                FilledButton.tonal(
                   onPressed: () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const StatusScreen()));
                   },

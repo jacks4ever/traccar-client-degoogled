@@ -170,8 +170,27 @@ class DegoogledGeolocationService {
 
   static Future<void> startTracking() async {
     try {
+      developer.log('Starting background geolocation tracking...');
       await bg.BackgroundGeolocation.start();
-      developer.log('Tracking started successfully');
+      
+      // Verify the service actually started and get current state
+      final state = await bg.BackgroundGeolocation.state;
+      developer.log('Tracking started successfully - enabled: ${state.enabled}, tracking: ${state.trackingMode}');
+      developer.log('Current location settings - URL: ${state.url}, autoSync: ${state.autoSync}');
+      
+      // Check location permissions
+      final providerState = await bg.BackgroundGeolocation.providerState;
+      developer.log('Location permissions - status: ${providerState.status}, GPS enabled: ${providerState.gps}, network enabled: ${providerState.network}');
+      
+      // Request an immediate location to test the system
+      developer.log('Requesting immediate location after start...');
+      try {
+        await bg.BackgroundGeolocation.getCurrentPosition(samples: 1, persist: true, extras: {'startup_test': true});
+        developer.log('Immediate location request completed');
+      } catch (locError) {
+        developer.log('Immediate location request failed', error: locError);
+      }
+      
     } catch (error) {
       developer.log('Error starting tracking', error: error);
       
@@ -260,6 +279,7 @@ class DegoogledGeolocationService {
 
   // Original callback methods from GeolocationService
   static Future<void> onEnabledChange(bool enabled) async {
+    developer.log('🔄 ENABLED CHANGE CALLBACK: enabled=$enabled');
     if (Preferences.instance.getBool(Preferences.wakelock) ?? false) {
       if (!enabled) {
         // Wakelock functionality removed for degoogled compatibility
@@ -268,6 +288,7 @@ class DegoogledGeolocationService {
   }
 
   static Future<void> onMotionChange(bg.Location location) async {
+    developer.log('🚶 MOTION CHANGE CALLBACK: isMoving=${location.isMoving}, lat=${location.coords.latitude}, lon=${location.coords.longitude}');
     if (Preferences.instance.getBool(Preferences.wakelock) ?? false) {
       if (location.isMoving) {
         // Wakelock functionality removed for degoogled compatibility
@@ -278,11 +299,19 @@ class DegoogledGeolocationService {
   }
 
   static Future<void> onHeartbeat(bg.HeartbeatEvent event) async {
-    await bg.BackgroundGeolocation.getCurrentPosition(samples: 1, persist: true, extras: {'heartbeat': true});
+    developer.log('💓 HEARTBEAT CALLBACK: Requesting current position');
+    try {
+      await bg.BackgroundGeolocation.getCurrentPosition(samples: 1, persist: true, extras: {'heartbeat': true});
+      developer.log('Heartbeat position request completed');
+    } catch (error) {
+      developer.log('Heartbeat position request failed', error: error);
+    }
   }
 
   static Future<void> onLocation(bg.Location location) async {
-    developer.log('Location received: lat=${location.coords.latitude}, lon=${location.coords.longitude}, timestamp=${location.timestamp}');
+    developer.log('🎯 LOCATION CALLBACK TRIGGERED! lat=${location.coords.latitude}, lon=${location.coords.longitude}, timestamp=${location.timestamp}');
+    developer.log('Location details - accuracy: ${location.coords.accuracy}, speed: ${location.coords.speed}, isMoving: ${location.isMoving}');
+    developer.log('Location extras: ${location.extras}');
     
     if (_shouldDelete(location)) {
       try {
@@ -296,9 +325,9 @@ class DegoogledGeolocationService {
       developer.log('Location cached, attempting to sync to server');
       try {
         await bg.BackgroundGeolocation.sync();
-        developer.log('Location sync completed successfully');
+        developer.log('✅ Location sync completed successfully');
       } catch (error) {
-        developer.log('Failed to send location to server', error: error);
+        developer.log('❌ Failed to send location to server', error: error);
         // Try to get more details about the sync failure
         final state = await bg.BackgroundGeolocation.state;
         developer.log('Current config - URL: ${state.url}, enabled: ${state.enabled}');
@@ -307,11 +336,22 @@ class DegoogledGeolocationService {
   }
 
   static bool _shouldDelete(bg.Location location) {
-    if (!location.isMoving) return false;
-    if (location.extras?.isNotEmpty == true) return false;
+    developer.log('🔍 Checking if location should be deleted - isMoving: ${location.isMoving}, extras: ${location.extras}');
+    
+    if (!location.isMoving) {
+      developer.log('Location kept - not moving');
+      return false;
+    }
+    if (location.extras?.isNotEmpty == true) {
+      developer.log('Location kept - has extras');
+      return false;
+    }
 
     final lastLocation = LocationCache.get();
-    if (lastLocation == null) return false;
+    if (lastLocation == null) {
+      developer.log('Location kept - no previous location');
+      return false;
+    }
 
     final isHighestAccuracy = Preferences.instance.getString(Preferences.accuracy) == 'highest';
     final duration = DateTime.parse(location.timestamp).difference(DateTime.parse(lastLocation.timestamp)).inSeconds;
@@ -328,15 +368,22 @@ class DegoogledGeolocationService {
 
     if (distanceFilter == 0 || isHighestAccuracy) {
       final intervalFilter = Preferences.instance.getInt(Preferences.interval) ?? 0;
-      if (intervalFilter > 0 && duration >= intervalFilter) return false;
+      if (intervalFilter > 0 && duration >= intervalFilter) {
+        developer.log('Location kept - interval filter passed');
+        return false;
+      }
     }
 
     if (isHighestAccuracy && lastLocation.heading >= 0 && location.coords.heading > 0) {
       final angle = (location.coords.heading - lastLocation.heading).abs();
       final angleFilter = Preferences.instance.getInt(Preferences.angle) ?? 0;
-      if (angleFilter > 0 && angle >= angleFilter) return false;
+      if (angleFilter > 0 && angle >= angleFilter) {
+        developer.log('Location kept - angle filter passed');
+        return false;
+      }
     }
 
+    developer.log('❌ Location will be DELETED due to filtering');
     return true;
   }
 
