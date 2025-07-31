@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math';
@@ -278,16 +279,68 @@ class DegoogledGeolocationService {
 
   static Future<void> testServerConnection() async {
     try {
-      developer.log('Testing server connection...');
+      developer.log('🔍 Testing server connection...');
       final state = await bg.BackgroundGeolocation.state;
-      developer.log('Server URL: ${state.url}');
-      developer.log('Device ID: ${Preferences.instance.getString(Preferences.id)}');
+      final serverUrl = state.url ?? '';
+      final deviceId = Preferences.instance.getString(Preferences.id);
       
-      // Force a sync to test server connection
+      developer.log('Server URL: $serverUrl');
+      developer.log('Device ID: $deviceId');
+      
+      if (serverUrl.isEmpty) {
+        throw Exception('Server URL is not configured');
+      }
+      
+      // Parse the URL to test basic connectivity
+      Uri? uri;
+      try {
+        uri = Uri.parse(serverUrl);
+        developer.log('Parsed URL - Host: ${uri.host}, Port: ${uri.port}, Path: ${uri.path}');
+      } catch (e) {
+        throw Exception('Invalid server URL format: $serverUrl');
+      }
+      
+      // Test basic HTTP connectivity first
+      developer.log('🌐 Testing basic HTTP connectivity to ${uri.host}:${uri.port}...');
+      
+      try {
+        final client = HttpClient();
+        client.connectionTimeout = const Duration(seconds: 10);
+        
+        // Try to connect to the server
+        final request = await client.getUrl(uri);
+        request.headers.set('User-Agent', 'TraccarClient/9.5.2');
+        
+        final response = await request.close();
+        developer.log('✅ HTTP connection successful - Status: ${response.statusCode}');
+        
+        // Read response to ensure connection is fully established
+        final responseBody = await response.transform(const Utf8Decoder()).join();
+        developer.log('Response length: ${responseBody.length} characters');
+        
+        client.close();
+      } catch (httpError) {
+        developer.log('❌ HTTP connectivity test failed: $httpError');
+        
+        // Provide specific guidance based on error type
+        if (httpError.toString().contains('Connection refused')) {
+          throw Exception('Server connection refused - Check if Traccar server is running on ${uri.host}:${uri.port}');
+        } else if (httpError.toString().contains('Network is unreachable')) {
+          throw Exception('Network unreachable - Check your internet connection and server address');
+        } else if (httpError.toString().contains('timeout')) {
+          throw Exception('Connection timeout - Server may be slow or unreachable');
+        } else {
+          throw Exception('HTTP connectivity failed: $httpError');
+        }
+      }
+      
+      // If HTTP test passes, try the plugin sync
+      developer.log('🔄 Testing plugin sync to server...');
       await bg.BackgroundGeolocation.sync();
-      developer.log('Server connection test completed');
+      developer.log('✅ Server connection test completed successfully');
+      
     } catch (error) {
-      developer.log('Server connection test failed', error: error);
+      developer.log('❌ Server connection test failed', error: error);
       rethrow;
     }
   }
