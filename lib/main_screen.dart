@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:traccar_client/degoogled_geolocation_service.dart';
 import 'package:traccar_client/main.dart';
+import 'package:traccar_client/native_location_service.dart';
 import 'package:traccar_client/password_service.dart';
 import 'package:traccar_client/preferences.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
@@ -463,55 +464,117 @@ class _MainScreenState extends State<MainScreen> {
                         }
                       }
                       
-                      // Force a location request with optimized settings for reliability
-                      developer.log('🎯 Starting Force Location with three-stage approach...');
+                      // Hybrid Force Location: flutter_background_geolocation + native Android fallback
+                      developer.log('🎯 Starting Hybrid Force Location (plugin + native fallback)...');
                       
+                      bool locationObtained = false;
+                      
+                      // Method 1: Try flutter_background_geolocation (simplified single attempt)
                       try {
-                        // First attempt: Quick check for cached location
+                        developer.log('📱 Method 1: Trying flutter_background_geolocation...');
                         await bg.BackgroundGeolocation.getCurrentPosition(
                           samples: 1,
                           persist: true, 
-                          timeout: 15, // Quick 15 second timeout
+                          timeout: 30, // Single 30 second timeout
                           maximumAge: 60000, // Accept locations up to 1 minute old
-                          desiredAccuracy: 200, // Very relaxed accuracy for cached location
-                          extras: {'manual_force_cached': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+                          desiredAccuracy: 100, // 100 meter accuracy
+                          extras: {'manual_force_hybrid': true, 'method': 'plugin', 'timestamp': DateTime.now().millisecondsSinceEpoch}
                         );
-                      } catch (firstAttemptError) {
-                        developer.log('Cached location attempt failed, trying fresh GPS...', error: firstAttemptError);
+                        locationObtained = true;
+                        developer.log('✅ Method 1: flutter_background_geolocation succeeded!');
+                      } catch (pluginError) {
+                        developer.log('❌ Method 1: flutter_background_geolocation failed: $pluginError');
                         
+                        // Method 2: Native Android LocationManager fallback (like original Traccar client)
                         try {
-                          // Second attempt: Fresh GPS with moderate timeout
-                          await bg.BackgroundGeolocation.getCurrentPosition(
-                            samples: 1,
-                            persist: true, 
-                            timeout: 45, // 45 second timeout
-                            maximumAge: 5000, // Accept locations up to 5 seconds old
-                            desiredAccuracy: 100, // 100 meter accuracy
-                            extras: {'manual_force_gps': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
-                          );
-                        } catch (secondAttemptError) {
-                          developer.log('GPS attempt failed, trying maximum relaxed settings...', error: secondAttemptError);
+                          developer.log('🔧 Method 2: Trying native Android LocationManager fallback...');
                           
-                          // Third attempt: Maximum relaxed settings for difficult conditions
-                          await bg.BackgroundGeolocation.getCurrentPosition(
-                            samples: 1,
-                            persist: true, 
-                            timeout: 90, // Extended 90 second timeout
-                            maximumAge: 120000, // Accept locations up to 2 minutes old
-                            desiredAccuracy: 500, // Very relaxed 500 meter accuracy
-                            extras: {'manual_force_emergency': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
-                          );
+                          // First try last known location (instant)
+                          final lastKnown = await NativeLocationService.getLastKnownLocation();
+                          if (lastKnown != null) {
+                            developer.log('✅ Method 2a: Got last known location from native Android');
+                            
+                            // Convert native location to bg format and send
+                            final locationData = {
+                              'coords': {
+                                'latitude': lastKnown['latitude'],
+                                'longitude': lastKnown['longitude'],
+                                'accuracy': lastKnown['accuracy'],
+                                'altitude': lastKnown['altitude'],
+                                'speed': lastKnown['speed'],
+                                'heading': lastKnown['bearing'],
+                              },
+                              'timestamp': lastKnown['timestamp'],
+                              'is_moving': false,
+                              'event': 'manual_force_native_cached',
+                              'extras': {'method': 'native_cached', 'provider': lastKnown['provider']},
+                              'battery': {'level': 0.0, 'is_charging': false}, // Dummy battery data
+                              'activity': {'type': 'unknown', 'confidence': 0}, // Dummy activity data
+                            };
+                            
+                            // Manually send to server (since we're bypassing the plugin)
+                            await bg.BackgroundGeolocation.insertLocation(locationData);
+                            locationObtained = true;
+                            developer.log('✅ Method 2a: Native cached location sent to server');
+                          } else {
+                            // No cached location, request fresh one
+                            developer.log('🔍 Method 2b: No cached location, requesting fresh GPS via native...');
+                            final freshLocation = await NativeLocationService.requestSingleLocation(
+                              timeoutSeconds: 45,
+                              accuracyMeters: 200,
+                            );
+                            
+                            if (freshLocation != null) {
+                              developer.log('✅ Method 2b: Got fresh location from native Android GPS');
+                              
+                              // Convert and send to server
+                              final locationData = {
+                                'coords': {
+                                  'latitude': freshLocation['latitude'],
+                                  'longitude': freshLocation['longitude'],
+                                  'accuracy': freshLocation['accuracy'],
+                                  'altitude': freshLocation['altitude'],
+                                  'speed': freshLocation['speed'],
+                                  'heading': freshLocation['bearing'],
+                                },
+                                'timestamp': freshLocation['timestamp'],
+                                'is_moving': false,
+                                'event': 'manual_force_native_fresh',
+                                'extras': {'method': 'native_fresh', 'provider': freshLocation['provider']},
+                                'battery': {'level': 0.0, 'is_charging': false}, // Dummy battery data
+                                'activity': {'type': 'unknown', 'confidence': 0}, // Dummy activity data
+                              };
+                              
+                              await bg.BackgroundGeolocation.insertLocation(locationData);
+                              locationObtained = true;
+                              developer.log('✅ Method 2b: Native fresh location sent to server');
+                            } else {
+                              developer.log('❌ Method 2b: Native fresh location request failed');
+                            }
+                          }
+                        } catch (nativeError) {
+                          developer.log('❌ Method 2: Native Android fallback failed: $nativeError');
                         }
                       }
                       
-                      messengerKey.currentState?.showSnackBar(
-                        const SnackBar(
-                          content: Text('Force location request completed successfully - check logs'),
-                          duration: Duration(seconds: 3),
-                        )
-                      );
+                      // Show success/failure message
+                      if (locationObtained) {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('✅ Force Location successful! Location sent to server.'),
+                            duration: Duration(seconds: 3),
+                          )
+                        );
+                      } else {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('❌ Force Location failed: Both plugin and native methods failed.\n\nTry:\n• Moving outdoors for better GPS signal\n• Ensuring location services are enabled\n• Checking location permissions\n• Waiting for GPS to initialize (can take 2-3 minutes)'),
+                            duration: Duration(seconds: 8),
+                          )
+                        );
+                      }
                     } catch (error) {
-                      developer.log('❌ Force location request failed', error: error);
+                      developer.log('❌ Force location request failed with exception', error: error);
                       
                       String errorMessage = 'Force location failed: ${error.toString()}';
                       
@@ -523,9 +586,9 @@ class _MainScreenState extends State<MainScreen> {
                       } else if (error.toString().contains('LocationError code: 3')) {
                         errorMessage = 'Location Error: Location request timeout.\n\nThis may happen if:\n• GPS signal is weak\n• Device is indoors\n• Location services are slow to respond\n\nTry moving to an open area and retry.';
                       } else if (error.toString().contains('LocationError code: 408')) {
-                        errorMessage = 'Location Error: All location attempts timed out (408).\n\nThe app tried 3 different approaches:\n1. Cached location (15s)\n2. Fresh GPS (45s)\n3. Emergency mode (90s)\n\nTry:\n• Moving outdoors for better GPS signal\n• Waiting 2-3 minutes for GPS to initialize\n• Ensuring location services are enabled\n• Restarting location services in device settings\n\nNote: First GPS fix after reboot can take several minutes.';
+                        errorMessage = 'Location Error: Plugin timeout (408) - but native fallback should have tried.\n\nIf both methods failed:\n• Move outdoors for better GPS signal\n• Wait 2-3 minutes for GPS to initialize\n• Ensure location services are enabled\n• Restart location services in device settings\n\nNote: First GPS fix after reboot can take several minutes.';
                       } else if (error.toString().contains('Google Play Services') || error.toString().contains('HMS are installed')) {
-                        errorMessage = 'Google Play Services warning (can be ignored on de-googled devices).\n\nIf location still fails:\n• Check that GPS is enabled\n• Verify location permissions\n• Try moving to better GPS signal area';
+                        errorMessage = 'Google Play Services warning (can be ignored on de-googled devices).\n\nNative fallback should still work. If location fails:\n• Check that GPS is enabled\n• Verify location permissions\n• Try moving to better GPS signal area';
                       }
                       
                       messengerKey.currentState?.showSnackBar(
