@@ -387,24 +387,39 @@ class _MainScreenState extends State<MainScreen> {
                       final state = await bg.BackgroundGeolocation.state;
                       developer.log('Current state before force location: enabled=${state.enabled}, tracking=${state.trackingMode}');
                       
-                      // If background geolocation is not enabled, try to enable it temporarily
+                      // Ensure background geolocation service is running for optimal Force Location performance
                       if (!state.enabled) {
-                        developer.log('Background geolocation not enabled, attempting to enable for force location');
+                        developer.log('🔴 Background geolocation service is STOPPED - starting it for Force Location');
                         try {
-                          await bg.BackgroundGeolocation.start();
-                          await Future.delayed(const Duration(milliseconds: 1000)); // Give it more time to start
+                          // Initialize the service first
+                          await DegoogledGeolocationService.ensureInitialized();
+                          await Future.delayed(const Duration(milliseconds: 500));
                           
-                          // Verify it started
+                          // Start the background service
+                          await bg.BackgroundGeolocation.start();
+                          await Future.delayed(const Duration(milliseconds: 2000)); // Give it more time to fully start
+                          
+                          // Verify it started and get updated state
                           final newState = await bg.BackgroundGeolocation.state;
                           if (newState.enabled) {
-                            developer.log('✅ Background geolocation enabled successfully for force location');
+                            developer.log('✅ Background geolocation service STARTED successfully for Force Location');
+                            
+                            // Show user feedback that service was started
+                            messengerKey.currentState?.showSnackBar(
+                              const SnackBar(
+                                content: Text('Started background location service for Force Location'),
+                                duration: Duration(seconds: 2),
+                              )
+                            );
                           } else {
-                            developer.log('⚠️ Background geolocation still not enabled, but attempting force location anyway');
+                            developer.log('⚠️ Background geolocation service still STOPPED, but attempting Force Location anyway');
                           }
                         } catch (e) {
-                          developer.log('Failed to enable background geolocation for force location', error: e);
+                          developer.log('❌ Failed to start background geolocation service for Force Location', error: e);
                           // Continue anyway - getCurrentPosition might still work
                         }
+                      } else {
+                        developer.log('✅ Background geolocation service is already RUNNING - good for Force Location');
                       }
                       
                       // Force a location request with optimized settings for reliability
@@ -565,6 +580,58 @@ class _MainScreenState extends State<MainScreen> {
                     }
                   },
                   child: const Text('Request Perms'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      final state = await bg.BackgroundGeolocation.state;
+                      
+                      if (state.enabled) {
+                        // Stop the service
+                        developer.log('🔴 Manually stopping background geolocation service');
+                        await bg.BackgroundGeolocation.stop();
+                        
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('🔴 Background location service STOPPED'),
+                            duration: Duration(seconds: 3),
+                          )
+                        );
+                      } else {
+                        // Start the service
+                        developer.log('🟢 Manually starting background geolocation service');
+                        await DegoogledGeolocationService.ensureInitialized();
+                        await bg.BackgroundGeolocation.start();
+                        
+                        // Verify it started
+                        final newState = await bg.BackgroundGeolocation.state;
+                        if (newState.enabled) {
+                          messengerKey.currentState?.showSnackBar(
+                            const SnackBar(
+                              content: Text('🟢 Background location service STARTED'),
+                              duration: Duration(seconds: 3),
+                            )
+                          );
+                        } else {
+                          messengerKey.currentState?.showSnackBar(
+                            const SnackBar(
+                              content: Text('⚠️ Failed to start background location service'),
+                              duration: Duration(seconds: 3),
+                            )
+                          );
+                        }
+                      }
+                    } catch (error) {
+                      developer.log('❌ Failed to toggle background service', error: error);
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text('Service toggle failed: ${error.toString()}'),
+                          duration: const Duration(seconds: 5),
+                        )
+                      );
+                    }
+                  },
+                  child: const Text('Start/Stop Service'),
                 ),
                 FilledButton.tonal(
                   onPressed: () {
