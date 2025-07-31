@@ -100,7 +100,7 @@ class Preferences {
       maxRecordsToPersist: instance.getBool(buffer) != false ? -1 : 1,
       logLevel: bg.Config.LOG_LEVEL_VERBOSE,
       logMaxDays: 1,
-      locationTimeout: 45, // 45 second timeout for location requests
+      locationTimeout: 90, // 90 second timeout for location requests (matches emergency mode)
       locationTemplate: _locationTemplate(),
       preventSuspend: heartbeatInterval > 0,
       disableElasticity: true,

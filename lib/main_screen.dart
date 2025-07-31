@@ -411,27 +411,41 @@ class _MainScreenState extends State<MainScreen> {
                       developer.log('Attempting force location with optimized settings...');
                       
                       try {
-                        // First attempt: Balanced settings for good accuracy and reasonable timeout
-                        await bg.BackgroundGeolocation.getCurrentPosition(
-                          samples: 1, // Single sample for faster response
-                          persist: true, 
-                          timeout: 45, // 45 second timeout
-                          maximumAge: 10000, // Accept locations up to 10 seconds old
-                          desiredAccuracy: 50, // 50 meter accuracy (more achievable)
-                          extras: {'manual_force': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
-                        );
-                      } catch (firstAttemptError) {
-                        developer.log('First attempt failed, trying with relaxed settings...', error: firstAttemptError);
-                        
-                        // Second attempt: Very relaxed settings for maximum compatibility
+                        // First attempt: Quick check for cached location
                         await bg.BackgroundGeolocation.getCurrentPosition(
                           samples: 1,
                           persist: true, 
-                          timeout: 60, // Full 60 second timeout
-                          maximumAge: 30000, // Accept locations up to 30 seconds old
-                          desiredAccuracy: 100, // 100 meter accuracy (very achievable)
-                          extras: {'manual_force_fallback': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+                          timeout: 15, // Quick 15 second timeout
+                          maximumAge: 60000, // Accept locations up to 1 minute old
+                          desiredAccuracy: 200, // Very relaxed accuracy for cached location
+                          extras: {'manual_force_cached': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
                         );
+                      } catch (firstAttemptError) {
+                        developer.log('Cached location attempt failed, trying fresh GPS...', error: firstAttemptError);
+                        
+                        try {
+                          // Second attempt: Fresh GPS with moderate timeout
+                          await bg.BackgroundGeolocation.getCurrentPosition(
+                            samples: 1,
+                            persist: true, 
+                            timeout: 45, // 45 second timeout
+                            maximumAge: 5000, // Accept locations up to 5 seconds old
+                            desiredAccuracy: 100, // 100 meter accuracy
+                            extras: {'manual_force_gps': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+                          );
+                        } catch (secondAttemptError) {
+                          developer.log('GPS attempt failed, trying maximum relaxed settings...', error: secondAttemptError);
+                          
+                          // Third attempt: Maximum relaxed settings for difficult conditions
+                          await bg.BackgroundGeolocation.getCurrentPosition(
+                            samples: 1,
+                            persist: true, 
+                            timeout: 90, // Extended 90 second timeout
+                            maximumAge: 120000, // Accept locations up to 2 minutes old
+                            desiredAccuracy: 500, // Very relaxed 500 meter accuracy
+                            extras: {'manual_force_emergency': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+                          );
+                        }
                       }
                       
                       messengerKey.currentState?.showSnackBar(
@@ -453,7 +467,7 @@ class _MainScreenState extends State<MainScreen> {
                       } else if (error.toString().contains('LocationError code: 3')) {
                         errorMessage = 'Location Error: Location request timeout.\n\nThis may happen if:\n• GPS signal is weak\n• Device is indoors\n• Location services are slow to respond\n\nTry moving to an open area and retry.';
                       } else if (error.toString().contains('LocationError code: 408')) {
-                        errorMessage = 'Location Error: Request timeout (408).\n\nThe location request took too long to complete.\n\nTry:\n• Moving to an area with better GPS signal (outdoors)\n• Waiting for GPS to get a satellite fix\n• Ensuring location services are enabled\n• Trying again in a few moments\n\nNote: First GPS fix can take 30-60 seconds.';
+                        errorMessage = 'Location Error: All location attempts timed out (408).\n\nThe app tried 3 different approaches:\n1. Cached location (15s)\n2. Fresh GPS (45s)\n3. Emergency mode (90s)\n\nTry:\n• Moving outdoors for better GPS signal\n• Waiting 2-3 minutes for GPS to initialize\n• Ensuring location services are enabled\n• Restarting location services in device settings\n\nNote: First GPS fix after reboot can take several minutes.';
                       } else if (error.toString().contains('Google Play Services') || error.toString().contains('HMS are installed')) {
                         errorMessage = 'Google Play Services warning (can be ignored on de-googled devices).\n\nIf location still fails:\n• Check that GPS is enabled\n• Verify location permissions\n• Try moving to better GPS signal area';
                       }
