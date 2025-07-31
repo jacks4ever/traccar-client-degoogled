@@ -241,9 +241,26 @@ class DegoogledGeolocationService {
   static Future<void> getCurrentPosition() async {
     try {
       developer.log('Requesting current position...');
+      
+      // Check permissions first
+      final providerState = await bg.BackgroundGeolocation.providerState;
+      developer.log('Provider state for getCurrentPosition: status=${providerState.status}, GPS=${providerState.gps}, network=${providerState.network}');
+      
+      if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
+          providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
+        throw Exception('Location permissions not granted. Please grant location permissions first.');
+      }
+      
+      if (!providerState.gps && !providerState.network) {
+        throw Exception('Location services disabled. Please enable GPS/Location services in device settings.');
+      }
+      
       final location = await bg.BackgroundGeolocation.getCurrentPosition(
         samples: 1, 
         persist: true, 
+        timeout: 30,
+        maximumAge: 5000,
+        desiredAccuracy: 10,
         extras: {'manual': true}
       );
       developer.log('Current position obtained: lat=${location.coords.latitude}, lon=${location.coords.longitude}');
@@ -292,6 +309,22 @@ class DegoogledGeolocationService {
     } catch (error) {
       developer.log('❌ Failed to request permissions', error: error);
       rethrow;
+    }
+  }
+
+  static Future<void> ensureInitialized() async {
+    if (!_isInitialized) {
+      developer.log('Background geolocation not initialized, initializing now...');
+      await init();
+    }
+    
+    // Verify the service is ready
+    try {
+      final state = await bg.BackgroundGeolocation.state;
+      developer.log('Background geolocation state after ensure initialized: enabled=${state.enabled}, url=${state.url}');
+    } catch (error) {
+      developer.log('Failed to get background geolocation state', error: error);
+      throw Exception('Background geolocation service not properly initialized');
     }
   }
 

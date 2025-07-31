@@ -353,20 +353,74 @@ class _MainScreenState extends State<MainScreen> {
                     try {
                       developer.log('🔍 MANUAL LOCATION REQUEST - Force triggering location update');
                       
-                      // Check current state first
+                      // Check permissions and location services first
+                      final providerState = await bg.BackgroundGeolocation.providerState;
+                      developer.log('Provider state before force location: status=${providerState.status}, GPS=${providerState.gps}, network=${providerState.network}');
+                      
+                      // Check if permissions are granted
+                      if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
+                          providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('Location permissions required. Please grant location permissions first using "Request Perms" button.'),
+                            duration: Duration(seconds: 5),
+                          )
+                        );
+                        return;
+                      }
+                      
+                      // Check if GPS is enabled
+                      if (!providerState.gps && !providerState.network) {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('Location services disabled. Please enable GPS/Location services in device settings.'),
+                            duration: Duration(seconds: 5),
+                          )
+                        );
+                        return;
+                      }
+                      
+                      // Ensure background geolocation service is initialized
+                      await DegoogledGeolocationService.ensureInitialized();
+                      
+                      // Check current state
                       final state = await bg.BackgroundGeolocation.state;
                       developer.log('Current state before force location: enabled=${state.enabled}, tracking=${state.trackingMode}');
                       
-                      // Force a location request
+                      // If background geolocation is not enabled, try to enable it temporarily
+                      if (!state.enabled) {
+                        developer.log('Background geolocation not enabled, attempting to enable for force location');
+                        try {
+                          await bg.BackgroundGeolocation.start();
+                          await Future.delayed(const Duration(milliseconds: 1000)); // Give it more time to start
+                          
+                          // Verify it started
+                          final newState = await bg.BackgroundGeolocation.state;
+                          if (newState.enabled) {
+                            developer.log('✅ Background geolocation enabled successfully for force location');
+                          } else {
+                            developer.log('⚠️ Background geolocation still not enabled, but attempting force location anyway');
+                          }
+                        } catch (e) {
+                          developer.log('Failed to enable background geolocation for force location', error: e);
+                          // Continue anyway - getCurrentPosition might still work
+                        }
+                      }
+                      
+                      // Force a location request with more aggressive settings
+                      developer.log('Attempting force location with enhanced settings...');
                       await bg.BackgroundGeolocation.getCurrentPosition(
                         samples: 3, 
                         persist: true, 
+                        timeout: 30, // 30 second timeout
+                        maximumAge: 5000, // Accept locations up to 5 seconds old
+                        desiredAccuracy: 10, // 10 meter accuracy
                         extras: {'manual_force': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
                       );
                       
                       messengerKey.currentState?.showSnackBar(
                         const SnackBar(
-                          content: Text('Force location request completed - check logs'),
+                          content: Text('Force location request completed successfully - check logs'),
                           duration: Duration(seconds: 3),
                         )
                       );
@@ -377,17 +431,19 @@ class _MainScreenState extends State<MainScreen> {
                       
                       // Decode LocationError codes for better user feedback
                       if (error.toString().contains('LocationError code: 1')) {
-                        errorMessage = 'Location Error: Permission denied or location services disabled. Please check:\n• Location permissions are granted\n• GPS/Location services are enabled\n• App has background location access';
+                        errorMessage = 'Location Error: Permission denied or location services disabled.\n\nPlease check:\n• Location permissions are granted ("Always" recommended)\n• GPS/Location services are enabled in device settings\n• App has background location access\n\nUse "Check Status" to verify settings.';
                       } else if (error.toString().contains('LocationError code: 2')) {
-                        errorMessage = 'Location Error: Network error or location unavailable';
+                        errorMessage = 'Location Error: Network error or location unavailable.\n\nTry:\n• Moving to an area with better GPS signal\n• Enabling both GPS and network location\n• Waiting a moment and trying again';
                       } else if (error.toString().contains('LocationError code: 3')) {
-                        errorMessage = 'Location Error: Location request timeout';
+                        errorMessage = 'Location Error: Location request timeout.\n\nThis may happen if:\n• GPS signal is weak\n• Device is indoors\n• Location services are slow to respond\n\nTry moving to an open area and retry.';
+                      } else if (error.toString().contains('Google Play Services') || error.toString().contains('HMS are installed')) {
+                        errorMessage = 'Google Play Services warning (can be ignored on de-googled devices).\n\nIf location still fails:\n• Check that GPS is enabled\n• Verify location permissions\n• Try moving to better GPS signal area';
                       }
                       
                       messengerKey.currentState?.showSnackBar(
                         SnackBar(
                           content: Text(errorMessage),
-                          duration: const Duration(seconds: 8),
+                          duration: const Duration(seconds: 10),
                         )
                       );
                     }
