@@ -472,7 +472,7 @@ class _MainScreenState extends State<MainScreen> {
                       // Method 1: Try flutter_background_geolocation (simplified single attempt)
                       try {
                         developer.log('📱 Method 1: Trying flutter_background_geolocation...');
-                        await bg.BackgroundGeolocation.getCurrentPosition(
+                        final pluginLocation = await bg.BackgroundGeolocation.getCurrentPosition(
                           samples: 1,
                           persist: true, 
                           timeout: 30, // Single 30 second timeout
@@ -481,13 +481,16 @@ class _MainScreenState extends State<MainScreen> {
                           extras: {'manual_force_hybrid': true, 'method': 'plugin', 'timestamp': DateTime.now().millisecondsSinceEpoch}
                         );
                         locationObtained = true;
-                        developer.log('✅ Method 1: flutter_background_geolocation succeeded!');
+                        developer.log('✅ Method 1: flutter_background_geolocation succeeded! Location: ${pluginLocation.coords.latitude}, ${pluginLocation.coords.longitude}');
                       } catch (pluginError) {
-                        developer.log('❌ Method 1: flutter_background_geolocation failed: $pluginError');
+                        developer.log('❌ Method 1: flutter_background_geolocation failed with error: $pluginError');
+                        developer.log('❌ Method 1: Error type: ${pluginError.runtimeType}');
+                        developer.log('❌ Method 1: Error string contains 408: ${pluginError.toString().contains('408')}');
                         
                         // Method 2: Native Android LocationManager fallback (like original Traccar client)
                         try {
-                          developer.log('🔧 Method 2: Trying native Android LocationManager fallback...');
+                          developer.log('🔧 Method 2: Starting native Android LocationManager fallback...');
+                          developer.log('🔧 Method 2: Plugin failed, now trying native approach like original Traccar client');
                           
                           // First try last known location (instant)
                           final lastKnown = await NativeLocationService.getLastKnownLocation();
@@ -736,6 +739,95 @@ class _MainScreenState extends State<MainScreen> {
                     }
                   },
                   child: const Text('Start/Stop Service'),
+                ),
+                FilledButton.tonal(
+                  onPressed: () async {
+                    try {
+                      developer.log('🧪 Testing native Android LocationManager directly...');
+                      
+                      // Test native location service
+                      final hasPermission = await NativeLocationService.hasLocationPermission();
+                      final isEnabled = await NativeLocationService.isLocationEnabled();
+                      
+                      developer.log('Native: Has permission: $hasPermission');
+                      developer.log('Native: Location enabled: $isEnabled');
+                      
+                      if (!hasPermission) {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('❌ Native test: No location permission'),
+                            duration: Duration(seconds: 3),
+                          )
+                        );
+                        return;
+                      }
+                      
+                      if (!isEnabled) {
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('❌ Native test: Location services disabled'),
+                            duration: Duration(seconds: 3),
+                          )
+                        );
+                        return;
+                      }
+                      
+                      // Try to get last known location
+                      developer.log('Native: Trying getLastKnownLocation...');
+                      final lastKnown = await NativeLocationService.getLastKnownLocation();
+                      
+                      if (lastKnown != null) {
+                        developer.log('✅ Native: Got last known location: ${lastKnown['latitude']}, ${lastKnown['longitude']} (accuracy: ${lastKnown['accuracy']}m, provider: ${lastKnown['provider']})');
+                        messengerKey.currentState?.showSnackBar(
+                          SnackBar(
+                            content: Text('✅ Native test: Got cached location\nLat: ${lastKnown['latitude']}\nLon: ${lastKnown['longitude']}\nAccuracy: ${lastKnown['accuracy']}m\nProvider: ${lastKnown['provider']}'),
+                            duration: const Duration(seconds: 5),
+                          )
+                        );
+                      } else {
+                        // Try fresh location request
+                        developer.log('Native: No cached location, trying fresh request...');
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('🔍 Native test: No cached location, requesting fresh GPS...'),
+                            duration: Duration(seconds: 2),
+                          )
+                        );
+                        
+                        final freshLocation = await NativeLocationService.requestSingleLocation(
+                          timeoutSeconds: 30,
+                          accuracyMeters: 200,
+                        );
+                        
+                        if (freshLocation != null) {
+                          developer.log('✅ Native: Got fresh location: ${freshLocation['latitude']}, ${freshLocation['longitude']} (accuracy: ${freshLocation['accuracy']}m, provider: ${freshLocation['provider']})');
+                          messengerKey.currentState?.showSnackBar(
+                            SnackBar(
+                              content: Text('✅ Native test: Got fresh GPS location\nLat: ${freshLocation['latitude']}\nLon: ${freshLocation['longitude']}\nAccuracy: ${freshLocation['accuracy']}m\nProvider: ${freshLocation['provider']}'),
+                              duration: const Duration(seconds: 5),
+                            )
+                          );
+                        } else {
+                          developer.log('❌ Native: Fresh location request failed');
+                          messengerKey.currentState?.showSnackBar(
+                            const SnackBar(
+                              content: Text('❌ Native test: Fresh GPS request failed\nTry moving outdoors or wait for GPS initialization'),
+                              duration: Duration(seconds: 5),
+                            )
+                          );
+                        }
+                      }
+                    } catch (error) {
+                      developer.log('❌ Native test failed with exception: $error');
+                      messengerKey.currentState?.showSnackBar(
+                        SnackBar(
+                          content: Text('❌ Native test failed: ${error.toString()}'),
+                          duration: const Duration(seconds: 5),
+                        )
+                      );
+                    }
+                  },
+                  child: const Text('Test Native GPS'),
                 ),
                 FilledButton.tonal(
                   onPressed: () {
