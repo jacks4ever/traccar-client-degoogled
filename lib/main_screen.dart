@@ -486,6 +486,13 @@ class _MainScreenState extends State<MainScreen> {
                         developer.log('❌ Method 1: flutter_background_geolocation failed with error: $pluginError');
                         developer.log('❌ Method 1: Error type: ${pluginError.runtimeType}');
                         developer.log('❌ Method 1: Error string contains 408: ${pluginError.toString().contains('408')}');
+                        developer.log('❌ Method 1: Error string contains "Could not fetch last location": ${pluginError.toString().contains('Could not fetch last location')}');
+                        developer.log('❌ Method 1: Full error details: ${pluginError.toString()}');
+                        
+                        // Specific handling for "Could not fetch last location" error
+                        if (pluginError.toString().contains('Could not fetch last location')) {
+                          developer.log('🎯 DETECTED: "Could not fetch last location" error - this is exactly what native fallback should handle!');
+                        }
                         
                         // Method 2: Native Android LocationManager fallback (like original Traccar client)
                         try {
@@ -516,9 +523,10 @@ class _MainScreenState extends State<MainScreen> {
                             };
                             
                             // Manually send to server (since we're bypassing the plugin)
+                            developer.log('🔧 Method 2a: Attempting to send native cached location to server...');
                             await bg.BackgroundGeolocation.insertLocation(locationData);
                             locationObtained = true;
-                            developer.log('✅ Method 2a: Native cached location sent to server');
+                            developer.log('✅ Method 2a: Native cached location sent to server successfully');
                           } else {
                             // No cached location, request fresh one
                             developer.log('🔍 Method 2b: No cached location, requesting fresh GPS via native...');
@@ -548,15 +556,18 @@ class _MainScreenState extends State<MainScreen> {
                                 'activity': {'type': 'unknown', 'confidence': 0}, // Dummy activity data
                               };
                               
+                              developer.log('🔧 Method 2b: Attempting to send native fresh location to server...');
                               await bg.BackgroundGeolocation.insertLocation(locationData);
                               locationObtained = true;
-                              developer.log('✅ Method 2b: Native fresh location sent to server');
+                              developer.log('✅ Method 2b: Native fresh location sent to server successfully');
                             } else {
                               developer.log('❌ Method 2b: Native fresh location request failed');
                             }
                           }
                         } catch (nativeError) {
                           developer.log('❌ Method 2: Native Android fallback failed: $nativeError');
+                          developer.log('❌ Method 2: Native error type: ${nativeError.runtimeType}');
+                          developer.log('❌ Method 2: Native error details: ${nativeError.toString()}');
                         }
                       }
                       
