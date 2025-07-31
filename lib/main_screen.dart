@@ -407,16 +407,32 @@ class _MainScreenState extends State<MainScreen> {
                         }
                       }
                       
-                      // Force a location request with more aggressive settings
-                      developer.log('Attempting force location with enhanced settings...');
-                      await bg.BackgroundGeolocation.getCurrentPosition(
-                        samples: 3, 
-                        persist: true, 
-                        timeout: 30, // 30 second timeout
-                        maximumAge: 5000, // Accept locations up to 5 seconds old
-                        desiredAccuracy: 10, // 10 meter accuracy
-                        extras: {'manual_force': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
-                      );
+                      // Force a location request with optimized settings for reliability
+                      developer.log('Attempting force location with optimized settings...');
+                      
+                      try {
+                        // First attempt: Balanced settings for good accuracy and reasonable timeout
+                        await bg.BackgroundGeolocation.getCurrentPosition(
+                          samples: 1, // Single sample for faster response
+                          persist: true, 
+                          timeout: 45, // 45 second timeout
+                          maximumAge: 10000, // Accept locations up to 10 seconds old
+                          desiredAccuracy: 50, // 50 meter accuracy (more achievable)
+                          extras: {'manual_force': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+                        );
+                      } catch (firstAttemptError) {
+                        developer.log('First attempt failed, trying with relaxed settings...', error: firstAttemptError);
+                        
+                        // Second attempt: Very relaxed settings for maximum compatibility
+                        await bg.BackgroundGeolocation.getCurrentPosition(
+                          samples: 1,
+                          persist: true, 
+                          timeout: 60, // Full 60 second timeout
+                          maximumAge: 30000, // Accept locations up to 30 seconds old
+                          desiredAccuracy: 100, // 100 meter accuracy (very achievable)
+                          extras: {'manual_force_fallback': true, 'timestamp': DateTime.now().millisecondsSinceEpoch}
+                        );
+                      }
                       
                       messengerKey.currentState?.showSnackBar(
                         const SnackBar(
@@ -436,6 +452,8 @@ class _MainScreenState extends State<MainScreen> {
                         errorMessage = 'Location Error: Network error or location unavailable.\n\nTry:\n• Moving to an area with better GPS signal\n• Enabling both GPS and network location\n• Waiting a moment and trying again';
                       } else if (error.toString().contains('LocationError code: 3')) {
                         errorMessage = 'Location Error: Location request timeout.\n\nThis may happen if:\n• GPS signal is weak\n• Device is indoors\n• Location services are slow to respond\n\nTry moving to an open area and retry.';
+                      } else if (error.toString().contains('LocationError code: 408')) {
+                        errorMessage = 'Location Error: Request timeout (408).\n\nThe location request took too long to complete.\n\nTry:\n• Moving to an area with better GPS signal (outdoors)\n• Waiting for GPS to get a satellite fix\n• Ensuring location services are enabled\n• Trying again in a few moments\n\nNote: First GPS fix can take 30-60 seconds.';
                       } else if (error.toString().contains('Google Play Services') || error.toString().contains('HMS are installed')) {
                         errorMessage = 'Google Play Services warning (can be ignored on de-googled devices).\n\nIf location still fails:\n• Check that GPS is enabled\n• Verify location permissions\n• Try moving to better GPS signal area';
                       }

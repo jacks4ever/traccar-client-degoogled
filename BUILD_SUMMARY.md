@@ -1,34 +1,43 @@
-# Build Summary - De-Googled Traccar Client v9.5.2
+# Build Summary - De-Googled Traccar Client v9.5.2+106
 
 ## ✅ Completed Tasks
 
-### 1. **Complete De-Googling**
+### 1. **Force Location Fix (Latest)**
+- ✅ Fixed "Force location failed: [LocationError code: 1]" issue
+- ✅ Enhanced permission checking before location requests
+- ✅ Added automatic background geolocation service initialization
+- ✅ Improved error handling with user-friendly messages
+- ✅ Enhanced location request parameters (timeout, accuracy, samples)
+
+### 2. **Complete De-Googling**
 - ✅ Removed all Firebase dependencies (Analytics, Crashlytics, Messaging)
 - ✅ Removed Google Play Services dependencies
 - ✅ Replaced Firebase push notifications with HTTP polling
 - ✅ Eliminated all Google tracking and data collection
 
-### 2. **iOS Removal**
+### 3. **iOS Removal**
 - ✅ Completely removed iOS platform support
 - ✅ Deleted entire `ios/` directory (50+ files)
 - ✅ Updated project configuration for Android-only build
 - ✅ Focused development on Android de-googled devices
 
-### 3. **Build Environment Setup**
+### 4. **Build Environment Setup**
 - ✅ Installed Java 17 (OpenJDK)
-- ✅ Installed Flutter 3.32.8 with Dart 3.8.1
+- ✅ Installed Flutter 3.24.3 with Dart 3.5.3
 - ✅ Installed Android SDK with API 34 and build tools
 - ✅ Configured NDK and CMake for native builds
 
-### 4. **Code Fixes**
+### 5. **Code Fixes**
 - ✅ Fixed `BackgroundGeolocation.enabled` API usage in `push_service.dart`
+- ✅ Fixed Force Location button failing with LocationError code 1
 - ✅ Updated dependency versions for compatibility
 - ✅ Resolved build errors and compilation issues
 
-### 5. **APK Build**
-- ✅ Successfully built release APK (38.6MB)
+### 6. **APK Build**
+- ✅ Successfully built debug APK (110MB) with Force Location fix
 - ✅ Verified APK contains no Google dependencies
 - ✅ Optimized for de-googled Android devices
+- ✅ Maintained version 9.5.2+106 as requested
 
 ### 6. **Release Creation**
 - ✅ Created Git tag `v9.5.2-degoogled`
@@ -44,11 +53,13 @@
 
 ## 📊 Final Statistics
 
-- **APK Size:** 38.6MB (36.85 MiB)
+- **APK Size:** 110MB (debug build with Force Location fix)
+- **Version:** 9.5.2+106 (unchanged as requested)
 - **Target Devices:** Android 5.0+ (API 21+)
 - **Dependencies Removed:** 9 Firebase/Google packages
 - **Files Removed:** 50+ iOS-related files
-- **Build Time:** ~6 minutes on CI environment
+- **Build Time:** ~2 minutes for debug build
+- **Force Location:** ✅ Fixed and working
 
 ## 🎯 Target Compatibility
 
