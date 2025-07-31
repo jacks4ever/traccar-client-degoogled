@@ -112,15 +112,16 @@ class DegoogledGeolocationService {
       desiredAccuracy: bg.Config.DESIRED_ACCURACY_MEDIUM,
       autoSync: false, // Use manual sync like original
       url: Preferences.instance.getString(Preferences.url),
+      method: 'GET', // Traccar server expects GET requests, not POST
       params: {
-        'device_id': Preferences.instance.getString(Preferences.id),
+        'id': Preferences.instance.getString(Preferences.id), // Use 'id' not 'device_id'
       },
       distanceFilter: (Preferences.instance.getInt(Preferences.distance) ?? 75).toDouble(),
       locationUpdateInterval: (Preferences.instance.getInt(Preferences.interval) ?? 300) * 1000,
       maxRecordsToPersist: Preferences.instance.getBool(Preferences.buffer) != false ? -1 : 1,
       logLevel: bg.Config.LOG_LEVEL_VERBOSE,
       logMaxDays: 1,
-      locationTemplate: _locationTemplate(),
+      locationTemplate: _traccarLocationTemplate(), // Use Traccar-compatible GET template
       disableElasticity: true,
       disableStopDetection: Preferences.instance.getBool(Preferences.stopDetection) == false,
       notification: bg.Notification(
@@ -143,6 +144,13 @@ class DegoogledGeolocationService {
     });
   }
 
+  static String _traccarLocationTemplate() {
+    // Traccar server expects GET requests with query parameters
+    // When method is GET, the plugin uses this as the query string
+    // Device ID will be provided via params, so we use the template variable
+    return '''id=<%= id %>&timestamp=<%= timestamp %>&lat=<%= latitude %>&lon=<%= longitude %>&speed=<%= speed %>&bearing=<%= heading %>&altitude=<%= altitude %>&accuracy=<%= accuracy %>&batt=<%= battery.level %>''';
+  }
+  
   static String _locationTemplate() {
     return '''{
       "timestamp": "<%= timestamp %>",
