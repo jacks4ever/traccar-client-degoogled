@@ -308,27 +308,51 @@ class DegoogledGeolocationService {
         throw Exception('Invalid server URL format: $serverUrl');
       }
       
-      // Test basic HTTP connectivity first
-      developer.log('🌐 Testing basic HTTP connectivity to ${uri.host}:${uri.port}...');
+      // Test Traccar protocol with GET request and query parameters
+      developer.log('🌐 Testing Traccar protocol to ${uri.host}:${uri.port}...');
       
       try {
         final client = HttpClient();
         client.connectionTimeout = const Duration(seconds: 10);
         
-        // Try to connect to the server
-        final request = await client.getUrl(uri);
+        // Build Traccar test URL with query parameters (like the actual client sends)
+        final testUri = uri.replace(queryParameters: {
+          'id': deviceId ?? 'test-device',
+          'timestamp': (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString(),
+          'lat': '0.0',
+          'lon': '0.0',
+          'speed': '0',
+          'bearing': '0',
+          'altitude': '0',
+          'accuracy': '10',
+          'batt': '100',
+        });
+        
+        developer.log('Testing URL: $testUri');
+        
+        // Try to connect to the server with Traccar protocol
+        final request = await client.getUrl(testUri);
         request.headers.set('User-Agent', 'TraccarClient/9.5.2');
         
         final response = await request.close();
-        developer.log('✅ HTTP connection successful - Status: ${response.statusCode}');
+        developer.log('✅ Traccar protocol test - Status: ${response.statusCode}');
         
-        // Read response to ensure connection is fully established
+        // Read response to check for errors
         final responseBody = await response.transform(const Utf8Decoder()).join();
-        developer.log('Response length: ${responseBody.length} characters');
+        developer.log('Response: ${responseBody.length > 100 ? responseBody.substring(0, 100) + "..." : responseBody}');
+        
+        // Check if response indicates success (200 OK or similar)
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          developer.log('✅ Server accepts Traccar protocol requests');
+        } else if (response.statusCode == 404) {
+          throw Exception('Server returned 404 Not Found - Check if Traccar server is configured correctly');
+        } else {
+          developer.log('⚠️ Server responded with status ${response.statusCode} but connection works');
+        }
         
         client.close();
       } catch (httpError) {
-        developer.log('❌ HTTP connectivity test failed: $httpError');
+        developer.log('❌ Traccar protocol test failed: $httpError');
         
         // Provide specific guidance based on error type
         if (httpError.toString().contains('Connection refused')) {
@@ -338,7 +362,7 @@ class DegoogledGeolocationService {
         } else if (httpError.toString().contains('timeout')) {
           throw Exception('Connection timeout - Server may be slow or unreachable');
         } else {
-          throw Exception('HTTP connectivity failed: $httpError');
+          throw Exception('Traccar protocol test failed: $httpError');
         }
       }
       
