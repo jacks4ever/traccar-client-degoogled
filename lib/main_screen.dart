@@ -387,27 +387,54 @@ class _MainScreenState extends State<MainScreen> {
                       final state = await bg.BackgroundGeolocation.state;
                       developer.log('Current state before force location: enabled=${state.enabled}, tracking=${state.trackingMode}');
                       
-                      // Ensure background geolocation service is running for optimal Force Location performance
+                      // Ensure background geolocation service is running and GPS is warmed up
                       if (!state.enabled) {
-                        developer.log('🔴 Background geolocation service is STOPPED - starting it for Force Location');
+                        developer.log('🔴 Background geolocation service is STOPPED - starting and warming up for Force Location');
+                        
+                        messengerKey.currentState?.showSnackBar(
+                          const SnackBar(
+                            content: Text('🔄 Starting background service and warming up GPS...'),
+                            duration: Duration(seconds: 3),
+                          )
+                        );
+                        
                         try {
                           // Initialize the service first
                           await DegoogledGeolocationService.ensureInitialized();
-                          await Future.delayed(const Duration(milliseconds: 500));
+                          await Future.delayed(const Duration(milliseconds: 1000));
                           
                           // Start the background service
                           await bg.BackgroundGeolocation.start();
-                          await Future.delayed(const Duration(milliseconds: 2000)); // Give it more time to fully start
+                          await Future.delayed(const Duration(milliseconds: 3000)); // Give it more time to fully start
                           
                           // Verify it started and get updated state
                           final newState = await bg.BackgroundGeolocation.state;
                           if (newState.enabled) {
-                            developer.log('✅ Background geolocation service STARTED successfully for Force Location');
+                            developer.log('✅ Background geolocation service STARTED - now warming up GPS');
                             
-                            // Show user feedback that service was started
+                            // GPS warm-up: Try to get a quick location to initialize GPS
+                            try {
+                              developer.log('🌡️ GPS warm-up: attempting quick location request...');
+                              await bg.BackgroundGeolocation.getCurrentPosition(
+                                samples: 1,
+                                persist: false, // Don't save warm-up location
+                                timeout: 10, // Very short timeout for warm-up
+                                maximumAge: 300000, // Accept very old locations for warm-up
+                                desiredAccuracy: 1000, // Very relaxed accuracy for warm-up
+                                extras: {'warmup': true}
+                              );
+                              developer.log('✅ GPS warm-up successful');
+                            } catch (warmupError) {
+                              developer.log('⚠️ GPS warm-up failed (this is normal): ${warmupError.toString()}');
+                              // This is expected - warm-up often fails but initializes GPS
+                            }
+                            
+                            // Additional delay to let GPS settle
+                            await Future.delayed(const Duration(milliseconds: 2000));
+                            
                             messengerKey.currentState?.showSnackBar(
                               const SnackBar(
-                                content: Text('Started background location service for Force Location'),
+                                content: Text('✅ Background service started and GPS warmed up'),
                                 duration: Duration(seconds: 2),
                               )
                             );
@@ -422,8 +449,22 @@ class _MainScreenState extends State<MainScreen> {
                         developer.log('✅ Background geolocation service is already RUNNING - good for Force Location');
                       }
                       
+                      // Final check: Ensure service is still running before Force Location
+                      final finalState = await bg.BackgroundGeolocation.state;
+                      developer.log('Final state check before Force Location: enabled=${finalState.enabled}');
+                      
+                      if (!finalState.enabled) {
+                        developer.log('⚠️ Service stopped again - making one more attempt to start it');
+                        try {
+                          await bg.BackgroundGeolocation.start();
+                          await Future.delayed(const Duration(milliseconds: 1000));
+                        } catch (e) {
+                          developer.log('❌ Final service start attempt failed: $e');
+                        }
+                      }
+                      
                       // Force a location request with optimized settings for reliability
-                      developer.log('Attempting force location with optimized settings...');
+                      developer.log('🎯 Starting Force Location with three-stage approach...');
                       
                       try {
                         // First attempt: Quick check for cached location
