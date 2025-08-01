@@ -236,6 +236,15 @@ class _MainScreenState extends State<MainScreen> {
                       }
                     }
                     
+                    // Handle connection errors specifically
+                    if (errorMessage.contains('unexpected end of stream')) {
+                      errorMessage = 'Server connection interrupted. This may be due to server overload or network issues. Please try again in a few moments.';
+                    } else if (errorMessage.contains('Connection closed before full header was received')) {
+                      errorMessage = 'Server connection closed prematurely. Please check your server configuration and try again.';
+                    } else if (errorMessage.contains('SocketException')) {
+                      errorMessage = 'Network connection error. Please check your internet connection and server address.';
+                    }
+                    
                     // Handle Google Play Services error specifically for de-googled devices
                     if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {
                       // Check if we actually have location permissions before showing the message
@@ -294,6 +303,15 @@ class _MainScreenState extends State<MainScreen> {
                       );
                     } on PlatformException catch (error) {
                       String errorMessage = error.message ?? error.code;
+                      
+                      // Handle connection errors specifically
+                      if (errorMessage.contains('unexpected end of stream')) {
+                        errorMessage = 'Server connection interrupted. This may be due to server overload or network issues. Please try again in a few moments.';
+                      } else if (errorMessage.contains('Connection closed before full header was received')) {
+                        errorMessage = 'Server connection closed prematurely. Please check your server configuration and try again.';
+                      } else if (errorMessage.contains('SocketException')) {
+                        errorMessage = 'Network connection error. Please check your internet connection and server address.';
+                      }
                       
                       // Handle Google Play Services error specifically for de-googled devices
                       if (errorMessage.contains('Google Play Services') || errorMessage.contains('HMS are installed')) {

@@ -91,8 +91,9 @@ class Preferences {
       },
       autoSync: false, // Keep original setting - manual sync via bg.BackgroundGeolocation.sync()
       url: _formatUrl(instance.getString(url)),
+      method: 'GET', // Traccar server expects GET requests
       params: {
-        'device_id': instance.getString(id),
+        'id': instance.getString(id), // Use 'id' parameter for Traccar compatibility
       },
       distanceFilter: isHighestAccuracy ? 0 : instance.getInt(distance)?.toDouble(),
       locationUpdateInterval: isHighestAccuracy ? 0 : (locationUpdateInterval > 0 ? locationUpdateInterval : null),
@@ -101,12 +102,21 @@ class Preferences {
       logLevel: bg.Config.LOG_LEVEL_VERBOSE,
       logMaxDays: 1,
       locationTimeout: 90, // 90 second timeout for location requests (matches emergency mode)
-      locationTemplate: _locationTemplate(),
+      locationTemplate: _traccarLocationTemplate(), // Use Traccar-compatible GET template
       preventSuspend: heartbeatInterval > 0,
       disableElasticity: true,
       disableStopDetection: instance.getBool(stopDetection) == false,
       pausesLocationUpdatesAutomatically: Platform.isIOS ? !(isHighestAccuracy || instance.getBool(stopDetection) == false) : null,
       fastestLocationUpdateInterval: isHighestAccuracy ? 0 : fastestLocationUpdateInterval,
+      // Add HTTP configuration for better connection handling
+      httpTimeout: 30000, // 30 second timeout for HTTP requests
+      maxDaysToPersist: 1, // Limit data persistence
+      // Add headers for better server compatibility
+      headers: {
+        'User-Agent': 'TraccarClient/9.5.2',
+        'Connection': 'close',
+        'Accept': '*/*',
+      },
       backgroundPermissionRationale: bg.PermissionRationale(
         title: 'Allow {applicationName} to access this device\'s location in the background',
         message: 'For reliable tracking, please enable {backgroundPermissionOptionLabel} location access.',
@@ -128,6 +138,12 @@ class Preferences {
     final uri = Uri.parse(url);
     if ((uri.path.isEmpty || uri.path == '') && !url.endsWith('/')) return '$url/';
     return url;
+  }
+
+  static String _traccarLocationTemplate() {
+    // Traccar server expects GET requests with query parameters
+    // When method is GET, the plugin uses this as the query string
+    return '''id=<%= id %>&timestamp=<%= timestamp %>&lat=<%= latitude %>&lon=<%= longitude %>&speed=<%= speed %>&bearing=<%= heading %>&altitude=<%= altitude %>&accuracy=<%= accuracy %>&batt=<%= battery.level %>''';
   }
 
   static String _locationTemplate() {

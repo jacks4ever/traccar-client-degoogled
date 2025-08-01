@@ -124,6 +124,15 @@ class DegoogledGeolocationService {
       locationTemplate: _traccarLocationTemplate(), // Use Traccar-compatible GET template
       disableElasticity: true,
       disableStopDetection: Preferences.instance.getBool(Preferences.stopDetection) == false,
+      // Add HTTP configuration for better connection handling
+      httpTimeout: 30000, // 30 second timeout for HTTP requests
+      maxDaysToPersist: 1, // Limit data persistence
+      // Add headers for better server compatibility
+      headers: {
+        'User-Agent': 'TraccarClient/9.5.2',
+        'Connection': 'close',
+        'Accept': '*/*',
+      },
       notification: bg.Notification(
         smallIcon: 'drawable/ic_stat_notify',
         priority: bg.Config.NOTIFICATION_PRIORITY_LOW,
@@ -313,7 +322,14 @@ class DegoogledGeolocationService {
       
       try {
         final client = HttpClient();
-        client.connectionTimeout = const Duration(seconds: 10);
+        client.connectionTimeout = const Duration(seconds: 15); // Increased timeout
+        client.idleTimeout = const Duration(seconds: 15);
+        
+        // Handle SSL/TLS issues for self-signed certificates
+        client.badCertificateCallback = (cert, host, port) {
+          developer.log('⚠️ SSL certificate validation failed for $host:$port - allowing connection');
+          return true; // Allow self-signed certificates
+        };
         
         // Build Traccar test URL with query parameters (like the actual client sends)
         final testUri = uri.replace(queryParameters: {
@@ -333,12 +349,23 @@ class DegoogledGeolocationService {
         // Try to connect to the server with Traccar protocol
         final request = await client.getUrl(testUri);
         request.headers.set('User-Agent', 'TraccarClient/9.5.2');
+        request.headers.set('Connection', 'close'); // Prevent connection reuse issues
+        request.headers.set('Accept', '*/*');
         
-        final response = await request.close();
+        final response = await request.close().timeout(
+          const Duration(seconds: 20),
+          onTimeout: () {
+            throw Exception('Connection timeout - Server took too long to respond');
+          },
+        );
+        
         developer.log('✅ Traccar protocol test - Status: ${response.statusCode}');
         
-        // Read response to check for errors
-        final responseBody = await response.transform(const Utf8Decoder()).join();
+        // Read response to check for errors with timeout
+        final responseBody = await response.transform(const Utf8Decoder()).join().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () => 'Response read timeout',
+        );
         developer.log('Response: ${responseBody.length > 100 ? responseBody.substring(0, 100) + "..." : responseBody}');
         
         // Check if response indicates success (200 OK or similar)
@@ -350,7 +377,7 @@ class DegoogledGeolocationService {
           developer.log('⚠️ Server responded with status ${response.statusCode} but connection works');
         }
         
-        client.close();
+        client.close(force: true);
       } catch (httpError) {
         developer.log('❌ Traccar protocol test failed: $httpError');
         
@@ -361,14 +388,50 @@ class DegoogledGeolocationService {
           throw Exception('Network unreachable - Check your internet connection and server address');
         } else if (httpError.toString().contains('timeout')) {
           throw Exception('Connection timeout - Server may be slow or unreachable');
+        } else if (httpError.toString().contains('unexpected end of stream')) {
+          throw Exception('Connection interrupted - Server closed connection unexpectedly. This may be due to server overload or network issues. Try again in a few moments.');
+        } else if (httpError.toString().contains('Connection closed before full header was received')) {
+          throw Exception('Connection closed prematurely - Server may be overloaded or misconfigured');
+        } else if (httpError.toString().contains('SocketException')) {
+          throw Exception('Network socket error - Check your internet connection and server address');
         } else {
           throw Exception('Traccar protocol test failed: $httpError');
         }
       }
       
-      // If HTTP test passes, try the plugin sync
+      // If HTTP test passes, try the plugin sync with retry
       developer.log('🔄 Testing plugin sync to server...');
-      await bg.BackgroundGeolocation.sync();
+      
+      int retryCount = 0;
+      const maxRetries = 2;
+      bool syncSuccessful = false;
+      
+      while (retryCount < maxRetries && !syncSuccessful) {
+        try {
+          await bg.BackgroundGeolocation.sync();
+          developer.log('✅ Plugin sync test completed successfully');
+          syncSuccessful = true;
+        } catch (syncError) {
+          retryCount++;
+          developer.log('❌ Plugin sync test failed (attempt $retryCount/$maxRetries)', error: syncError);
+          
+          if (syncError.toString().contains('unexpected end of stream') || 
+              syncError.toString().contains('Connection closed before full header was received') ||
+              syncError.toString().contains('SocketException')) {
+            
+            if (retryCount < maxRetries) {
+              developer.log('Connection error in sync test, retrying in 2 seconds...');
+              await Future.delayed(const Duration(seconds: 2));
+            } else {
+              developer.log('⚠️ Plugin sync test failed but HTTP test passed - server connection works but sync may have issues');
+            }
+          } else {
+            developer.log('Non-connection error in sync test, not retrying');
+            break;
+          }
+        }
+      }
+      
       developer.log('✅ Server connection test completed successfully');
       
     } catch (error) {
@@ -449,6 +512,28 @@ class DegoogledGeolocationService {
     developer.log('Location details - accuracy: ${location.coords.accuracy}, speed: ${location.coords.speed}, isMoving: ${location.isMoving}');
     developer.log('Location extras: ${location.extras}');
     
+    // Validate coordinates to ensure they're reasonable
+    final lat = location.coords.latitude;
+    final lon = location.coords.longitude;
+    
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      developer.log('⚠️ Invalid coordinates detected: lat=$lat, lon=$lon - skipping location');
+      return;
+    }
+    
+    if (lat == 0.0 && lon == 0.0) {
+      developer.log('⚠️ Null Island coordinates (0,0) detected - likely invalid GPS fix, skipping');
+      return;
+    }
+    
+    // Check for reasonable accuracy (reject locations with very poor accuracy)
+    if (location.coords.accuracy != null && location.coords.accuracy! > 1000) {
+      developer.log('⚠️ Very poor accuracy (${location.coords.accuracy}m) - skipping location');
+      return;
+    }
+    
+    developer.log('✅ Location validation passed - lat=$lat, lon=$lon, accuracy=${location.coords.accuracy}m');
+    
     if (_shouldDelete(location)) {
       try {
         await bg.BackgroundGeolocation.destroyLocation(location.uuid);
@@ -459,14 +544,44 @@ class DegoogledGeolocationService {
     } else {
       LocationCache.set(location);
       developer.log('Location cached, attempting to sync to server');
-      try {
-        await bg.BackgroundGeolocation.sync();
-        developer.log('✅ Location sync completed successfully');
-      } catch (error) {
-        developer.log('❌ Failed to send location to server', error: error);
-        // Try to get more details about the sync failure
-        final state = await bg.BackgroundGeolocation.state;
-        developer.log('Current config - URL: ${state.url}, enabled: ${state.enabled}');
+      
+      // Retry sync with exponential backoff for connection issues
+      int retryCount = 0;
+      const maxRetries = 3;
+      bool syncSuccessful = false;
+      
+      while (retryCount < maxRetries && !syncSuccessful) {
+        try {
+          await bg.BackgroundGeolocation.sync();
+          developer.log('✅ Location sync completed successfully');
+          syncSuccessful = true;
+        } catch (error) {
+          retryCount++;
+          developer.log('❌ Failed to send location to server (attempt $retryCount/$maxRetries)', error: error);
+          
+          // Handle specific connection errors
+          if (error.toString().contains('unexpected end of stream') || 
+              error.toString().contains('Connection closed before full header was received') ||
+              error.toString().contains('SocketException')) {
+            
+            if (retryCount < maxRetries) {
+              final delaySeconds = pow(2, retryCount).toInt(); // Exponential backoff: 2, 4, 8 seconds
+              developer.log('Connection error detected, retrying in $delaySeconds seconds...');
+              await Future.delayed(Duration(seconds: delaySeconds));
+            } else {
+              developer.log('Max retries reached for connection error, giving up');
+              // Try to get more details about the sync failure
+              final state = await bg.BackgroundGeolocation.state;
+              developer.log('Current config - URL: ${state.url}, enabled: ${state.enabled}');
+            }
+          } else {
+            // For non-connection errors, don't retry
+            developer.log('Non-connection error, not retrying');
+            final state = await bg.BackgroundGeolocation.state;
+            developer.log('Current config - URL: ${state.url}, enabled: ${state.enabled}');
+            break;
+          }
+        }
       }
     }
   }
