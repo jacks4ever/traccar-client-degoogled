@@ -9,8 +9,8 @@ import 'package:traccar_client/preferences.dart';
 import 'package:traccar_client/simple_location_service.dart';
 
 import 'l10n/app_localizations.dart';
-import 'status_screen.dart';
-import 'settings_screen.dart';
+import 'simple_status_screen.dart';
+import 'simple_settings_screen.dart';
 
 class SimpleMainScreen extends StatefulWidget {
   const SimpleMainScreen({super.key});
@@ -223,7 +223,7 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const StatusScreen()),
+                MaterialPageRoute(builder: (context) => const SimpleStatusScreen()),
               );
             },
             icon: const Icon(Icons.info_outline),
@@ -232,7 +232,7 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                MaterialPageRoute(builder: (context) => const SimpleSettingsScreen()),
               );
             },
             icon: const Icon(Icons.settings),
