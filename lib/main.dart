@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:rate_my_app/rate_my_app.dart';
 import 'package:traccar_client/push_service.dart';
 import 'package:traccar_client/quick_actions.dart';
+import 'package:traccar_client/simple_location_service.dart';
 
 import 'l10n/app_localizations.dart';
-import 'main_screen.dart';
+import 'simple_main_screen.dart';
 import 'preferences.dart';
 
 final messengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -24,6 +25,9 @@ void main() async {
   await Preferences.init();
   await Preferences.migrate();
   await PushService.init();
+  
+  // Request location permissions on startup
+  await SimpleLocationService.requestPermissions();
   
   runApp(const MainApp());
 }
@@ -74,7 +78,7 @@ class _MainAppState extends State<MainApp> {
       home: Stack(
         children: const [
           QuickActionsInitializer(),
-          MainScreen(),
+          SimpleMainScreen(),
         ],
       ),
     );

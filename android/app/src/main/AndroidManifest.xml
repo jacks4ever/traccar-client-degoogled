@@ -48,17 +48,7 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <!-- flutter_background_geolocation license -->
-        <meta-data
-            android:name="com.transistorsoft.locationmanager.license"
-            android:value="ddc599599cddaa61dfe5bb25c2b46f549c6d749fae5d0273297b304753e2e5e3" />
-        <!-- Disable Google Play Services requirement for de-googled devices -->
-        <meta-data
-            android:name="com.transistorsoft.locationmanager.google_play_services"
-            android:value="false" />
-        <meta-data
-            android:name="com.transistorsoft.locationmanager.force_location_manager"
-            android:value="true" />
+        <!-- Simple native location tracking - no Google services required -->
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
