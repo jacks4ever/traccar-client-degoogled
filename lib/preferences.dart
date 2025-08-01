@@ -73,50 +73,23 @@ class Preferences {
   }
 
   static bg.Config geolocationConfig() {
-    final isHighestAccuracy = instance.getString(accuracy) == 'highest';
-    final locationUpdateInterval = (instance.getInt(interval) ?? 0) * 1000;
-    final fastestLocationUpdateInterval = (instance.getInt(fastestInterval) ?? 30) * 1000;
-    final heartbeatInterval = instance.getInt(heartbeat) ?? 0;
-    
     return bg.Config(
-      isMoving: true,
-      enableHeadless: true,
       stopOnTerminate: false,
       startOnBoot: true,
       desiredAccuracy: switch (instance.getString(accuracy)) {
-        'highest' => Platform.isIOS ? bg.Config.DESIRED_ACCURACY_NAVIGATION : bg.Config.DESIRED_ACCURACY_HIGH,
         'high' => bg.Config.DESIRED_ACCURACY_HIGH,
         'low' => bg.Config.DESIRED_ACCURACY_LOW,
         _ => bg.Config.DESIRED_ACCURACY_MEDIUM,
       },
-      autoSync: false, // Keep original setting - manual sync via bg.BackgroundGeolocation.sync()
       url: _formatUrl(instance.getString(url)),
       method: 'GET', // Traccar server expects GET requests
       params: {
         'id': instance.getString(id), // Use 'id' parameter for Traccar compatibility
       },
-      distanceFilter: isHighestAccuracy ? 0 : instance.getInt(distance)?.toDouble(),
-      locationUpdateInterval: isHighestAccuracy ? 0 : (locationUpdateInterval > 0 ? locationUpdateInterval : null),
-      heartbeatInterval: heartbeatInterval > 0 ? heartbeatInterval : null,
+      distanceFilter: instance.getInt(distance)?.toDouble(),
+      locationUpdateInterval: instance.getInt(interval),
       maxRecordsToPersist: instance.getBool(buffer) != false ? -1 : 1,
-      logLevel: bg.Config.LOG_LEVEL_VERBOSE,
-      logMaxDays: 1,
-      locationTimeout: 90, // 90 second timeout for location requests (matches emergency mode)
       locationTemplate: _traccarLocationTemplate(), // Use Traccar-compatible GET template
-      preventSuspend: heartbeatInterval > 0,
-      disableElasticity: true,
-      disableStopDetection: instance.getBool(stopDetection) == false,
-      pausesLocationUpdatesAutomatically: Platform.isIOS ? !(isHighestAccuracy || instance.getBool(stopDetection) == false) : null,
-      fastestLocationUpdateInterval: isHighestAccuracy ? 0 : fastestLocationUpdateInterval,
-      // Add HTTP configuration for better connection handling
-      httpTimeout: 30000, // 30 second timeout for HTTP requests
-      maxDaysToPersist: 1, // Limit data persistence
-      // Add headers for better server compatibility
-      headers: {
-        'User-Agent': 'TraccarClient/9.5.2',
-        'Connection': 'close',
-        'Accept': '*/*',
-      },
       backgroundPermissionRationale: bg.PermissionRationale(
         title: 'Allow {applicationName} to access this device\'s location in the background',
         message: 'For reliable tracking, please enable {backgroundPermissionOptionLabel} location access.',
@@ -127,9 +100,6 @@ class Preferences {
         smallIcon: 'drawable/ic_stat_notify',
         priority: bg.Config.NOTIFICATION_PRIORITY_LOW,
       ),
-      showsBackgroundLocationIndicator: false,
-      // Add debug flag to help with license issues
-      debug: true,
     );
   }
 
