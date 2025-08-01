@@ -15,25 +15,11 @@ class PushService {
   
   static Future<void> init() async {
     developer.log('Initializing degoogled push service');
-    
-    // Start polling for commands instead of using Firebase
-    bg.BackgroundGeolocation.onEnabledChange((enabled) async {
-      if (enabled) {
-        _startCommandPolling();
-      } else {
-        _stopCommandPolling();
-      }
-    });
-    
-    // Check if geolocation is already enabled and start polling
-    final state = await bg.BackgroundGeolocation.state;
-    if (state.enabled) {
-      _startCommandPolling();
-    }
+    // Push service will be activated when geolocation service starts
   }
 
-  static void _startCommandPolling() {
-    _stopCommandPolling(); // Stop any existing timer
+  static void startCommandPolling() {
+    stopCommandPolling(); // Stop any existing timer
     
     _pollTimer = Timer.periodic(_pollInterval, (timer) async {
       await _checkForCommands();
@@ -42,7 +28,7 @@ class PushService {
     developer.log('Started command polling');
   }
 
-  static void _stopCommandPolling() {
+  static void stopCommandPolling() {
     _pollTimer?.cancel();
     _pollTimer = null;
     developer.log('Stopped command polling');

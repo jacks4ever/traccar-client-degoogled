@@ -3,11 +3,12 @@ import 'dart:io';
 
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import 'package:traccar_client/preferences.dart';
+import 'package:traccar_client/push_service.dart';
 
 class DegoogledGeolocationService {
   static bool _isInitialized = false;
 
-  static Future<void> init() async {
+  static Future<void> _initializeIfNeeded() async {
     if (_isInitialized) return;
     
     try {
@@ -22,11 +23,33 @@ class DegoogledGeolocationService {
         developer.log('Location error', error: error);
       });
       
+      // Set up push service polling when geolocation is enabled/disabled
+      bg.BackgroundGeolocation.onEnabledChange((enabled) async {
+        if (enabled) {
+          PushService.startCommandPolling();
+        } else {
+          PushService.stopCommandPolling();
+        }
+      });
+      
       _isInitialized = true;
       developer.log('Geolocation service initialized successfully');
     } catch (error) {
       developer.log('Failed to initialize geolocation service', error: error);
       rethrow;
+    }
+  }
+
+  static Future<void> startTracking() async {
+    await _initializeIfNeeded();
+    await bg.BackgroundGeolocation.start();
+    developer.log('Tracking started');
+  }
+
+  static Future<void> stopTracking() async {
+    if (_isInitialized) {
+      await bg.BackgroundGeolocation.stop();
+      developer.log('Tracking stopped');
     }
   }
 

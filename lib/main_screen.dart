@@ -28,27 +28,6 @@ class _MainScreenState extends State<MainScreen> {
   void initState() {
     super.initState();
     _initState();
-    _checkPermissionsOnStart();
-  }
-
-  Future<void> _checkPermissionsOnStart() async {
-    // Wait a bit for the UI to settle
-    await Future.delayed(const Duration(seconds: 2));
-    
-    try {
-      final providerState = await bg.BackgroundGeolocation.providerState;
-      
-      // If permissions are denied, show guidance dialog
-      if (providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_DENIED ||
-          providerState.status == bg.ProviderChangeEvent.AUTHORIZATION_STATUS_NOT_DETERMINED) {
-        
-        if (mounted) {
-          _showPermissionGuidanceDialog();
-        }
-      }
-    } catch (error) {
-      developer.log('Error checking permissions on start', error: error);
-    }
   }
 
   void _showPermissionGuidanceDialog() {
