@@ -22,8 +22,9 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5'
+          flutter-version: '3.22.0'
           channel: 'stable'
+          cache: true
 
       - name: Get dependencies
         run: flutter pub get
@@ -40,18 +41,18 @@ jobs:
       - name: Rename APK
         run: |
           mv build/app/outputs/flutter-apk/app-release.apk \
-             build/app/outputs/flutter-apk/traccar-client-degoogled-v${{ steps.version.outputs.version }}-startup-fix.apk
+             build/app/outputs/flutter-apk/traccar-client-degoogled-v${{ steps.version.outputs.version }}-simple.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: traccar-client-degoogled-v${{ steps.version.outputs.version }}-startup-fix
-          path: build/app/outputs/flutter-apk/traccar-client-degoogled-v${{ steps.version.outputs.version }}-startup-fix.apk
+          name: traccar-client-degoogled-v${{ steps.version.outputs.version }}-simple
+          path: build/app/outputs/flutter-apk/traccar-client-degoogled-v${{ steps.version.outputs.version }}-simple.apk
 
       - name: Upload to Release (if tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: build/app/outputs/flutter-apk/traccar-client-degoogled-v${{ steps.version.outputs.version }}-startup-fix.apk
+          files: build/app/outputs/flutter-apk/traccar-client-degoogled-v${{ steps.version.outputs.version }}-simple.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
