@@ -151,19 +151,20 @@ class _SimpleStatusScreenState extends State<SimpleStatusScreen> {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             _buildStatusCard(),
             const SizedBox(height: 16),
             _buildConfigCard(),
-            const Spacer(),
+            const SizedBox(height: 32),
             Text(
               'Simple Degoogled Traccar Client\nNative GPS Location Service',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

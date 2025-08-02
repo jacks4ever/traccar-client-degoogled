@@ -286,19 +286,20 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
           ),
         ],
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             _buildTrackingCard(),
             const SizedBox(height: 16),
             _buildServerCard(),
-            const Spacer(),
+            const SizedBox(height: 32),
             Text(
               'Simple Degoogled Traccar Client\nNo Google Services Required',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
