@@ -89,11 +89,13 @@ class SimpleLocationService {
   /// Get current location and send to server
   static Future<void> _getCurrentLocationAndSend() async {
     try {
+      developer.log('Getting current GPS position...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
       );
 
+      developer.log('GPS position obtained: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)');
       await _sendLocationToServer(position);
     } catch (error) {
       developer.log('Error getting location: $error');
@@ -160,11 +162,13 @@ class SimpleLocationService {
   /// Get current location status
   static Future<Map<String, dynamic>> getStatus() async {
     try {
+      developer.log('Getting GPS position for status...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 5),
       );
 
+      developer.log('Status GPS position: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)');
       return {
         'tracking': _isTracking,
         'latitude': position.latitude,
@@ -173,6 +177,7 @@ class SimpleLocationService {
         'timestamp': DateTime.now().toIso8601String(),
       };
     } catch (error) {
+      developer.log('Error getting GPS position for status: $error');
       return {
         'tracking': _isTracking,
         'error': error.toString(),
@@ -195,16 +200,9 @@ class SimpleLocationService {
         };
       }
 
-      // Test with a dummy location request to the actual tracking endpoint
-      final testData = {
-        'id': deviceId,
-        'lat': 40.7128, // NYC coordinates for test
-        'lon': -74.0060,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'test': '1', // Mark as test request
-      };
-      
-      final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
+      // Test server connectivity by making a simple GET request to the root
+      // This avoids sending any location data that could interfere with actual tracking
+      final url = Uri.parse(serverUrl);
       developer.log('Testing connection to: $url');
       
       final response = await http.get(url).timeout(
@@ -264,16 +262,9 @@ class SimpleLocationService {
         return false;
       }
 
-      // Test with a dummy location request to the actual tracking endpoint
-      final testData = {
-        'id': deviceId,
-        'lat': 40.7128, // NYC coordinates for test
-        'lon': -74.0060,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'test': '1', // Mark as test request
-      };
-      
-      final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
+      // Test server connectivity by making a simple GET request to the root
+      // This avoids sending any location data that could interfere with actual tracking
+      final url = Uri.parse(serverUrl);
       developer.log('Testing connection to: $url');
       
       final response = await http.get(url).timeout(
