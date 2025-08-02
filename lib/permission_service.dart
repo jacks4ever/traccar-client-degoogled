@@ -20,18 +20,25 @@ class PermissionService {
         if (context.mounted) {
           await _showLocationServiceDialog(context);
         }
-        return false;
-      }
-
-      // Request basic location permission first
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        if (context.mounted) {
-          await _showLocationPermissionDialog(context);
+        // Check again after user potentially enabled location services
+        serviceEnabled = await Geolocator.isLocationServiceEnabled();
+        if (!serviceEnabled) {
+          return false;
         }
-        permission = await Geolocator.requestPermission();
       }
 
+      // Check current permission status
+      LocationPermission permission = await Geolocator.checkPermission();
+      developer.log('Current location permission: $permission');
+      
+      // Request location permission if needed
+      if (permission == LocationPermission.denied) {
+        developer.log('Requesting location permission...');
+        permission = await Geolocator.requestPermission();
+        developer.log('Permission result: $permission');
+      }
+
+      // Handle permanently denied permissions
       if (permission == LocationPermission.deniedForever) {
         if (context.mounted) {
           await _showPermissionDeniedDialog(context);
@@ -39,41 +46,45 @@ class PermissionService {
         return false;
       }
 
+      // If still denied after request, return false
       if (permission == LocationPermission.denied) {
         developer.log('Location permission denied by user');
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Location permission is required for GPS tracking'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
         return false;
       }
 
-      // Request background location permission if we only have while-in-use
+      // If we have basic permission, try to get background permission
       if (permission == LocationPermission.whileInUse) {
-        if (context.mounted) {
-          await _showBackgroundLocationDialog(context);
-        }
+        developer.log('Requesting background location permission...');
         
-        // Try to request always permission
-        final alwaysPermission = await Geolocator.requestPermission();
-        if (alwaysPermission != LocationPermission.always) {
+        // Request always permission for background tracking
+        final backgroundPermission = await Geolocator.requestPermission();
+        if (backgroundPermission == LocationPermission.always) {
+          permission = backgroundPermission;
+          developer.log('Background location permission granted');
+        } else {
           developer.log('Background location permission not granted, continuing with while-in-use');
-          // Still allow the app to work with while-in-use permission
         }
       }
 
-      // Request other necessary permissions
-      await _requestAdditionalPermissions(context);
+      // Show battery optimization guidance (non-blocking) only if we have location permission
+      if (context.mounted && (permission == LocationPermission.always || permission == LocationPermission.whileInUse)) {
+        // Don't await this - let it show in background
+        _showBatteryOptimizationDialog(context);
+      }
 
-      developer.log('Permission setup completed');
+      developer.log('Permission setup completed with permission: $permission');
       return true;
     } catch (error) {
       developer.log('Error requesting permissions: $error');
       return false;
-    }
-  }
-
-  /// Request additional permissions needed for background operation
-  static Future<void> _requestAdditionalPermissions(BuildContext context) async {
-    // Show battery optimization dialog (user will need to manually configure)
-    if (context.mounted) {
-      await _showBatteryOptimizationDialog(context);
     }
   }
 

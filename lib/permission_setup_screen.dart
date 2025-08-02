@@ -18,17 +18,18 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              SizedBox(height: MediaQuery.of(context).size.height * 0.05),
               Icon(
                 Icons.location_on,
-                size: 80,
+                size: 64,
                 color: Theme.of(context).colorScheme.primary,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               Text(
                 'Welcome to Traccar Client',
                 style: Theme.of(context).textTheme.headlineMedium,
@@ -42,7 +43,7 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -57,59 +58,53 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
                       _buildPermissionItem(
                         Icons.location_on,
                         'Location Access',
-                        'Required to track your device\'s GPS position',
+                        'Track GPS position',
                       ),
                       _buildPermissionItem(
                         Icons.location_history,
                         'Background Location',
-                        'Allows tracking when the app is not actively open',
+                        'Track when app is closed',
                       ),
                       _buildPermissionItem(
                         Icons.battery_saver,
                         'Battery Optimization',
-                        'Prevents the system from stopping location tracking',
+                        'Reliable background tracking',
                       ),
                       _buildPermissionItem(
                         Icons.notifications,
                         'Notifications',
-                        'Shows tracking status in the notification bar',
+                        'Show tracking status',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Card(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.security,
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Privacy First: Data sent only to your Traccar server',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimaryContainer,
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              Card(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.security,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Privacy First',
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Your location data is sent only to your configured Traccar server. '
-                        'No data is shared with Google or other third parties.',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimaryContainer,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -131,7 +126,7 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
                           ],
                         )
                       : const Text(
-                          'Grant Permissions & Continue',
+                          'Grant Permissions',
                           style: TextStyle(fontSize: 16),
                         ),
                 ),
@@ -141,6 +136,7 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
                 onPressed: _isRequestingPermissions ? null : _skipSetup,
                 child: const Text('Skip for now'),
               ),
+              SizedBox(height: MediaQuery.of(context).size.height * 0.05),
             ],
           ),
         ),
@@ -150,11 +146,11 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
 
   Widget _buildPermissionItem(IconData icon, String title, String description) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
         children: [
-          Icon(icon, size: 24),
-          const SizedBox(width: 16),
+          Icon(icon, size: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +161,9 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
                 ),
                 Text(
                   description,
-                  style: Theme.of(context).textTheme.bodySmall,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                  ),
                 ),
               ],
             ),
