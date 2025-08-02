@@ -86,6 +86,30 @@ class SimpleLocationService {
     await _getCurrentLocationAndSend();
   }
 
+  /// Force a fresh GPS reading and send to server (clears any cached/test data)
+  static Future<void> sendFreshGPSUpdate() async {
+    try {
+      developer.log('Forcing fresh GPS reading to clear any test data...');
+      
+      // Get a fresh GPS position with high accuracy
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 15),
+        forceAndroidLocationManager: true, // Force native GPS
+      );
+
+      developer.log('Fresh GPS position: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)');
+      
+      // Send immediately to server
+      await _sendLocationToServer(position);
+      
+      developer.log('Fresh GPS update sent to server successfully');
+    } catch (error) {
+      developer.log('Error sending fresh GPS update: $error');
+      rethrow;
+    }
+  }
+
   /// Get current location and send to server
   static Future<void> _getCurrentLocationAndSend() async {
     try {

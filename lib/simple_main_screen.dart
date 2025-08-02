@@ -107,6 +107,42 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
     }
   }
 
+  void _sendFreshGPS() async {
+    try {
+      messengerKey.currentState?.showSnackBar(
+        const SnackBar(
+          content: Text('Getting fresh GPS location...'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      await SimpleLocationService.sendFreshGPSUpdate();
+      
+      if (mounted) {
+        messengerKey.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text('Fresh GPS location sent to server!'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        
+        // Refresh the location status
+        _refreshState();
+      }
+    } catch (error) {
+      if (mounted) {
+        messengerKey.currentState?.showSnackBar(
+          SnackBar(
+            content: Text('Failed to get GPS location: $error'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildTrackingCard() {
     return Card(
       child: Padding(
@@ -275,6 +311,22 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
                 onPressed: _testServerConnection,
                 tooltip: 'Test connection',
               ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _sendFreshGPS,
+                    icon: const Icon(Icons.gps_fixed, size: 18),
+                    label: const Text('Send Fresh GPS'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
