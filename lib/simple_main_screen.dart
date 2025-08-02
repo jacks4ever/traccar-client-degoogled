@@ -369,7 +369,7 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
             _buildServerCard(),
             const SizedBox(height: 32),
             Text(
-              'Simple Degoogled Traccar Client\nNo Google Services Required',
+              'Simple Degoogled Traccar Client v9.5.2d\nNo Google Services Required',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

@@ -238,7 +238,7 @@ class _SimpleSettingsScreenState extends State<SimpleSettingsScreen> {
           ),
           const SizedBox(height: 32),
           Text(
-            'Simple Degoogled Traccar Client\nVersion 9.5.4',
+            'Simple Degoogled Traccar Client v9.5.2d\nDegoogled Edition',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
