@@ -2,7 +2,6 @@
 import 'dart:io';
 import 'dart:math';
 
-import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_android/shared_preferences_android.dart';
 
@@ -38,6 +37,7 @@ class Preferences {
           lastTimestamp, lastLatitude, lastLongitude, lastHeading,
           'device_id_preference', 'server_url_preference', 'accuracy_preference',
           'frequency_preference', 'distance_preference', 'buffer_preference',
+          'initial_setup_completed',
         },
       ),
     );
@@ -72,36 +72,7 @@ class Preferences {
     await instance.setInt(fastestInterval, instance.getInt(fastestInterval) ?? 30);
   }
 
-  static bg.Config geolocationConfig() {
-    return bg.Config(
-      stopOnTerminate: false,
-      startOnBoot: true,
-      desiredAccuracy: switch (instance.getString(accuracy)) {
-        'high' => bg.Config.DESIRED_ACCURACY_HIGH,
-        'low' => bg.Config.DESIRED_ACCURACY_LOW,
-        _ => bg.Config.DESIRED_ACCURACY_MEDIUM,
-      },
-      url: _formatUrl(instance.getString(url)),
-      method: 'GET', // Traccar server expects GET requests
-      params: {
-        'id': instance.getString(id), // Use 'id' parameter for Traccar compatibility
-      },
-      distanceFilter: instance.getInt(distance)?.toDouble(),
-      locationUpdateInterval: instance.getInt(interval),
-      maxRecordsToPersist: instance.getBool(buffer) != false ? -1 : 1,
-      locationTemplate: _traccarLocationTemplate(), // Use Traccar-compatible GET template
-      backgroundPermissionRationale: bg.PermissionRationale(
-        title: 'Allow {applicationName} to access this device\'s location in the background',
-        message: 'For reliable tracking, please enable {backgroundPermissionOptionLabel} location access.',
-        positiveAction: 'Change to {backgroundPermissionOptionLabel}',
-        negativeAction: 'Cancel'
-      ),
-      notification: bg.Notification(
-        smallIcon: 'drawable/ic_stat_notify',
-        priority: bg.Config.NOTIFICATION_PRIORITY_LOW,
-      ),
-    );
-  }
+
 
   static String? _formatUrl(String? url) {
     if (url == null) return null;
@@ -110,37 +81,7 @@ class Preferences {
     return url;
   }
 
-  static String _traccarLocationTemplate() {
-    // Traccar server expects GET requests with query parameters
-    // When method is GET, the plugin uses this as the query string
-    return '''id=<%= id %>&timestamp=<%= timestamp %>&lat=<%= latitude %>&lon=<%= longitude %>&speed=<%= speed %>&bearing=<%= heading %>&altitude=<%= altitude %>&accuracy=<%= accuracy %>&batt=<%= battery.level %>''';
-  }
 
-  static String _locationTemplate() {
-    return '''{
-      "timestamp": "<%= timestamp %>",
-      "coords": {
-        "latitude": <%= latitude %>,
-        "longitude": <%= longitude %>,
-        "accuracy": <%= accuracy %>,
-        "speed": <%= speed %>,
-        "heading": <%= heading %>,
-        "altitude": <%= altitude %>
-      },
-      "is_moving": <%= is_moving %>,
-      "odometer": <%= odometer %>,
-      "event": "<%= event %>",
-      "battery": {
-        "level": <%= battery.level %>,
-        "is_charging": <%= battery.is_charging %>
-      },
-      "activity": {
-        "type": "<%= activity.type %>"
-      },
-      "extras": {},
-      "_": "&id=${instance.getString(id)}&lat=<%= latitude %>&lon=<%= longitude %>&timestamp=<%= timestamp %>&"
-    }'''.split('\n').map((line) => line.trimLeft()).join();
-  }
 
   static Future<void> _migrate() async {
     final oldId = instance.getString('device_id_preference');

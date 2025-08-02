@@ -5,6 +5,7 @@ import 'package:rate_my_app/rate_my_app.dart';
 import 'package:traccar_client/push_service.dart';
 import 'package:traccar_client/quick_actions.dart';
 import 'package:traccar_client/simple_location_service.dart';
+import 'package:traccar_client/permission_setup_screen.dart';
 
 import 'l10n/app_localizations.dart';
 import 'simple_main_screen.dart';
@@ -26,9 +27,6 @@ void main() async {
   await Preferences.migrate();
   await PushService.init();
   
-  // Request location permissions on startup
-  await SimpleLocationService.requestPermissions();
-  
   runApp(const MainApp());
 }
 
@@ -41,19 +39,36 @@ class MainApp extends StatefulWidget {
 
 class _MainAppState extends State<MainApp> {
   RateMyApp rateMyApp = RateMyApp(minDays: 0, minLaunches: 0);
+  bool _showPermissionSetup = false;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    _checkInitialSetup();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await rateMyApp.init();
-      if (mounted && rateMyApp.shouldOpenDialog) {
+      if (mounted && rateMyApp.shouldOpenDialog && !_showPermissionSetup) {
         try {
           await rateMyApp.showRateDialog(context);
         } catch (error) {
           developer.log('Failed to show rate dialog', error: error);
         }
       }
+    });
+  }
+
+  Future<void> _checkInitialSetup() async {
+    final setupCompleted = Preferences.instance.getBool('initial_setup_completed') ?? false;
+    setState(() {
+      _showPermissionSetup = !setupCompleted;
+      _isLoading = false;
+    });
+  }
+
+  void _onPermissionSetupComplete() {
+    setState(() {
+      _showPermissionSetup = false;
     });
   }
 
@@ -75,12 +90,20 @@ class _MainAppState extends State<MainApp> {
           brightness: Brightness.dark,
         ),
       ),
-      home: Stack(
-        children: const [
-          QuickActionsInitializer(),
-          SimpleMainScreen(),
-        ],
-      ),
+      home: _isLoading
+          ? const Scaffold(
+              body: Center(
+                child: CircularProgressIndicator(),
+              ),
+            )
+          : _showPermissionSetup
+              ? PermissionSetupScreen(onComplete: _onPermissionSetupComplete)
+              : Stack(
+                  children: const [
+                    QuickActionsInitializer(),
+                    SimpleMainScreen(),
+                  ],
+                ),
     );
   }
 }

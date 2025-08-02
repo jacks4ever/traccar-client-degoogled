@@ -81,6 +81,11 @@ class SimpleLocationService {
     _positionStream = null;
   }
 
+  /// Send a single location update (for SOS or manual requests)
+  static Future<void> sendSingleUpdate() async {
+    await _getCurrentLocationAndSend();
+  }
+
   /// Get current location and send to server
   static Future<void> _getCurrentLocationAndSend() async {
     try {
@@ -98,7 +103,7 @@ class SimpleLocationService {
   /// Send location data to Traccar server
   static Future<void> _sendLocationToServer(Position position) async {
     try {
-      final serverUrl = Preferences.instance.getString(Preferences.server);
+      final serverUrl = Preferences.instance.getString(Preferences.url);
       final deviceId = Preferences.instance.getString(Preferences.id);
       
       if (serverUrl == null || deviceId == null) {
@@ -121,7 +126,8 @@ class SimpleLocationService {
       // Send to Traccar server using OsmAnd protocol (simple HTTP GET)
       final url = Uri.parse('$serverUrl/?${_buildQueryString(locationData)}');
       
-      developer.log('Sending location: ${position.latitude}, ${position.longitude}');
+      developer.log('Sending location to: $url');
+      developer.log('Location data: ${position.latitude}, ${position.longitude}');
       
       final response = await http.get(url).timeout(
         const Duration(seconds: 30),
@@ -171,6 +177,34 @@ class SimpleLocationService {
         'tracking': _isTracking,
         'error': error.toString(),
       };
+    }
+  }
+
+  /// Test server connection
+  static Future<bool> testServerConnection() async {
+    try {
+      final serverUrl = Preferences.instance.getString(Preferences.url);
+      if (serverUrl == null) {
+        developer.log('No server URL configured');
+        return false;
+      }
+
+      // Test with a simple ping to the server
+      final url = Uri.parse('$serverUrl/');
+      developer.log('Testing connection to: $url');
+      
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Connection test timeout', const Duration(seconds: 10));
+        },
+      );
+
+      developer.log('Server connection test: ${response.statusCode}');
+      return response.statusCode == 200 || response.statusCode == 404; // 404 is also OK for Traccar
+    } catch (error) {
+      developer.log('Server connection test failed: $error');
+      return false;
     }
   }
 }

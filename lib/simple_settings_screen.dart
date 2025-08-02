@@ -103,11 +103,11 @@ class _SimpleSettingsScreenState extends State<SimpleSettingsScreen> {
       children: [
         ListTile(
           title: Text(AppLocalizations.of(context)!.serverLabel),
-          subtitle: Text(Preferences.instance.getString(Preferences.server) ?? ''),
+          subtitle: Text(Preferences.instance.getString(Preferences.url) ?? ''),
           trailing: const Icon(Icons.edit),
           onTap: () => _editSetting(
             AppLocalizations.of(context)!.serverLabel,
-            Preferences.server,
+            Preferences.url,
             false,
           ),
         ),

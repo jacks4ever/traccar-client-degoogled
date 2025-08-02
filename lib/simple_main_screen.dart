@@ -23,6 +23,7 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
   bool trackingEnabled = false;
   Map<String, dynamic>? locationStatus;
   Timer? _statusTimer;
+  bool? serverConnectionStatus;
 
   @override
   void initState() {
@@ -40,6 +41,9 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
     // Check initial tracking state
     trackingEnabled = SimpleLocationService.isTracking;
     
+    // Test server connection on startup
+    _testServerConnection();
+    
     // Update location status periodically
     _statusTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       if (mounted) {
@@ -55,6 +59,15 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
     if (mounted) {
       setState(() {
         locationStatus = status;
+      });
+    }
+  }
+
+  void _testServerConnection() async {
+    final connected = await SimpleLocationService.testServerConnection();
+    if (mounted) {
+      setState(() {
+        serverConnectionStatus = connected;
       });
     }
   }
@@ -183,7 +196,7 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
   }
 
   Widget _buildServerCard() {
-    final server = Preferences.instance.getString(Preferences.server);
+    final server = Preferences.instance.getString(Preferences.url);
     final interval = Preferences.instance.getInt(Preferences.interval) ?? 30;
     
     return Card(
@@ -206,6 +219,40 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
               contentPadding: EdgeInsets.zero,
               title: const Text('Update Interval'),
               subtitle: Text('${interval}s'),
+            ),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Connection Status'),
+              subtitle: Row(
+                children: [
+                  Icon(
+                    serverConnectionStatus == true 
+                        ? Icons.check_circle 
+                        : serverConnectionStatus == false 
+                            ? Icons.error 
+                            : Icons.hourglass_empty,
+                    size: 16,
+                    color: serverConnectionStatus == true 
+                        ? Colors.green 
+                        : serverConnectionStatus == false 
+                            ? Colors.red 
+                            : Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    serverConnectionStatus == true 
+                        ? 'Connected' 
+                        : serverConnectionStatus == false 
+                            ? 'Connection failed' 
+                            : 'Testing...',
+                  ),
+                ],
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.refresh),
+                onPressed: _testServerConnection,
+                tooltip: 'Test connection',
+              ),
             ),
           ],
         ),

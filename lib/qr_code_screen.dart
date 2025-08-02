@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 
 import 'preferences.dart';
 import 'l10n/app_localizations.dart';
@@ -28,7 +27,7 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
     await _applyBoolParameter(parameters, Preferences.buffer);
     await _applyBoolParameter(parameters, Preferences.wakelock);
     await _applyBoolParameter(parameters, Preferences.stopDetection);
-    await bg.BackgroundGeolocation.setConfig(Preferences.geolocationConfig());
+    // Configuration applied automatically when tracking starts
   }
 
   Future<void> _applyStringParameter(Map<String, String> parameters, String key) async {

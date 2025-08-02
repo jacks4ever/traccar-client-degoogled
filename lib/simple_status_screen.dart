@@ -115,7 +115,7 @@ class _SimpleStatusScreenState extends State<SimpleStatusScreen> {
   }
 
   Widget _buildConfigCard() {
-    final server = Preferences.instance.getString(Preferences.server);
+    final server = Preferences.instance.getString(Preferences.url);
     final deviceId = Preferences.instance.getString(Preferences.id);
     final interval = Preferences.instance.getInt(Preferences.interval) ?? 30;
 

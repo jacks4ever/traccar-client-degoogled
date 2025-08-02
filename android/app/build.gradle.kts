@@ -8,8 +8,7 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val backgroundGeolocation = project(":flutter_background_geolocation")
-apply { from("${backgroundGeolocation.projectDir}/background_geolocation.gradle") }
+
 
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("../../environment/key.properties")
@@ -19,7 +18,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "org.traccar.client"
-    compileSdk = 34
+    compileSdk = 35
     ndkVersion = "27.0.12077973"
 
     compileOptions {

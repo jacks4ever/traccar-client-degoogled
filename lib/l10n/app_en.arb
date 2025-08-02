@@ -32,5 +32,10 @@
   "passwordError": "Wrong password",
   "startAction": "Start service",
   "stopAction": "Stop service",
-  "sosAction": "Send SOS"
+  "sosAction": "Send SOS",
+  "appTitle": "Traccar Client",
+  "resetTitle": "Reset Settings",
+  "resetMessage": "Are you sure you want to reset all settings to default values?",
+  "resetButton": "Reset",
+  "serverLabel": "Server URL"
 }

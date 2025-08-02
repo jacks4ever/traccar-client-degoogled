@@ -3,9 +3,9 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 
-import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
 import 'package:http/http.dart' as http;
 import 'package:traccar_client/password_service.dart';
+import 'package:traccar_client/simple_location_service.dart';
 
 import 'preferences.dart';
 
@@ -64,20 +64,16 @@ class PushService {
     switch (commandType) {
       case 'positionSingle':
         try {
-          await bg.BackgroundGeolocation.getCurrentPosition(
-            samples: 1, 
-            persist: true, 
-            extras: {'remote': true}
-          );
+          await SimpleLocationService.sendSingleUpdate();
         } catch (error) {
           developer.log('Failed to get position', error: error);
         }
         break;
       case 'positionPeriodic':
-        await bg.BackgroundGeolocation.start();
+        await SimpleLocationService.startTracking();
         break;
       case 'positionStop':
-        await bg.BackgroundGeolocation.stop();
+        await SimpleLocationService.stopTracking();
         break;
       case 'factoryReset':
         await PasswordService.setPassword('');
