@@ -184,13 +184,23 @@ class SimpleLocationService {
   static Future<bool> testServerConnection() async {
     try {
       final serverUrl = Preferences.instance.getString(Preferences.url);
-      if (serverUrl == null) {
-        developer.log('No server URL configured');
+      final deviceId = Preferences.instance.getString(Preferences.id);
+      
+      if (serverUrl == null || deviceId == null) {
+        developer.log('No server URL or device ID configured');
         return false;
       }
 
-      // Test with a simple ping to the server
-      final url = Uri.parse('$serverUrl/');
+      // Test with a dummy location request to the actual tracking endpoint
+      final testData = {
+        'id': deviceId,
+        'lat': 40.7128, // NYC coordinates for test
+        'lon': -74.0060,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'test': '1', // Mark as test request
+      };
+      
+      final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
       developer.log('Testing connection to: $url');
       
       final response = await http.get(url).timeout(
@@ -201,7 +211,9 @@ class SimpleLocationService {
       );
 
       developer.log('Server connection test: ${response.statusCode}');
-      return response.statusCode == 200 || response.statusCode == 404; // 404 is also OK for Traccar
+      // Traccar returns 200 for valid tracking requests
+      // We send a test request with valid format, so 200 means server is working
+      return response.statusCode == 200;
     } catch (error) {
       developer.log('Server connection test failed: $error');
       return false;

@@ -24,6 +24,7 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
   Map<String, dynamic>? locationStatus;
   Timer? _statusTimer;
   bool? serverConnectionStatus;
+  String? connectionStatusMessage;
 
   @override
   void initState() {
@@ -64,11 +65,30 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
   }
 
   void _testServerConnection() async {
-    final connected = await SimpleLocationService.testServerConnection();
     if (mounted) {
       setState(() {
-        serverConnectionStatus = connected;
+        serverConnectionStatus = null; // Show testing state
+        connectionStatusMessage = 'Testing...';
       });
+    }
+    
+    try {
+      final connected = await SimpleLocationService.testServerConnection();
+      if (mounted) {
+        setState(() {
+          serverConnectionStatus = connected;
+          connectionStatusMessage = connected 
+              ? 'Connected to demo server' 
+              : 'Connection test failed';
+        });
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          serverConnectionStatus = false;
+          connectionStatusMessage = 'Connection error: ${error.toString()}';
+        });
+      }
     }
   }
 
@@ -239,12 +259,16 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
                             : Colors.orange,
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    serverConnectionStatus == true 
-                        ? 'Connected' 
-                        : serverConnectionStatus == false 
-                            ? 'Connection failed' 
-                            : 'Testing...',
+                  Expanded(
+                    child: Text(
+                      connectionStatusMessage ?? 
+                          (serverConnectionStatus == true 
+                              ? 'Connected' 
+                              : serverConnectionStatus == false 
+                                  ? 'Connection failed' 
+                                  : 'Testing...'),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
