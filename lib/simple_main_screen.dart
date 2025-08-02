@@ -68,18 +68,16 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
     if (mounted) {
       setState(() {
         serverConnectionStatus = null; // Show testing state
-        connectionStatusMessage = 'Testing...';
+        connectionStatusMessage = 'Testing connection...';
       });
     }
     
     try {
-      final connected = await SimpleLocationService.testServerConnection();
+      final result = await SimpleLocationService.testServerConnectionDetailed();
       if (mounted) {
         setState(() {
-          serverConnectionStatus = connected;
-          connectionStatusMessage = connected 
-              ? 'Connected to demo server' 
-              : 'Connection test failed';
+          serverConnectionStatus = result['connected'] as bool;
+          connectionStatusMessage = result['message'] as String;
         });
       }
     } catch (error) {

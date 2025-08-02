@@ -181,6 +181,79 @@ class SimpleLocationService {
   }
 
   /// Test server connection
+  static Future<Map<String, dynamic>> testServerConnectionDetailed() async {
+    try {
+      final serverUrl = Preferences.instance.getString(Preferences.url);
+      final deviceId = Preferences.instance.getString(Preferences.id);
+      
+      if (serverUrl == null || deviceId == null) {
+        developer.log('No server URL or device ID configured');
+        return {
+          'connected': false,
+          'message': 'Server not configured',
+          'serverUrl': null,
+        };
+      }
+
+      // Test with a dummy location request to the actual tracking endpoint
+      final testData = {
+        'id': deviceId,
+        'lat': 40.7128, // NYC coordinates for test
+        'lon': -74.0060,
+        'timestamp': DateTime.now().millisecondsSinceEpoch,
+        'test': '1', // Mark as test request
+      };
+      
+      final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
+      developer.log('Testing connection to: $url');
+      
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Connection test timeout', const Duration(seconds: 10));
+        },
+      );
+
+      developer.log('Server connection test: ${response.statusCode}');
+      final connected = response.statusCode == 200;
+      
+      // Extract server host for display
+      final uri = Uri.parse(serverUrl);
+      final serverHost = uri.host + (uri.hasPort ? ':${uri.port}' : '');
+      
+      return {
+        'connected': connected,
+        'message': connected 
+            ? 'Connected to $serverHost' 
+            : 'Failed to connect to $serverHost (HTTP ${response.statusCode})',
+        'serverUrl': serverUrl,
+        'statusCode': response.statusCode,
+      };
+    } catch (error) {
+      developer.log('Server connection test failed: $error');
+      final serverUrl = Preferences.instance.getString(Preferences.url);
+      final uri = serverUrl != null ? Uri.parse(serverUrl) : null;
+      final serverHost = uri != null ? uri.host + (uri.hasPort ? ':${uri.port}' : '') : 'server';
+      
+      String errorMessage;
+      if (error is TimeoutException || error.toString().contains('timeout')) {
+        errorMessage = 'Connection timeout to $serverHost';
+      } else if (error.toString().contains('SocketException') || error.toString().contains('Network')) {
+        errorMessage = 'Network error to $serverHost';
+      } else {
+        errorMessage = 'Cannot reach $serverHost';
+      }
+      
+      return {
+        'connected': false,
+        'message': errorMessage,
+        'serverUrl': serverUrl,
+        'error': error.toString(),
+      };
+    }
+  }
+
+  /// Test server connection (legacy method for backward compatibility)
   static Future<bool> testServerConnection() async {
     try {
       final serverUrl = Preferences.instance.getString(Preferences.url);
