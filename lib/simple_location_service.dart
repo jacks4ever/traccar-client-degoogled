@@ -224,9 +224,14 @@ class SimpleLocationService {
         };
       }
 
-      // Test server connectivity by making a simple GET request to the root
-      // This avoids sending any location data that could interfere with actual tracking
-      final url = Uri.parse(serverUrl);
+      // Test server connectivity by making a request to the tracking endpoint without location data
+      // This tests the actual endpoint but avoids sending coordinates that could interfere with tracking
+      final testData = {
+        'id': deviceId,
+        'test': 'connection', // Mark as connection test only
+      };
+      
+      final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
       developer.log('Testing connection to: $url');
       
       final response = await http.get(url).timeout(
@@ -237,6 +242,7 @@ class SimpleLocationService {
       );
 
       developer.log('Server connection test: ${response.statusCode}');
+      // Traccar returns 200 for valid requests, even without location data
       final connected = response.statusCode == 200;
       
       // Extract server host for display
@@ -286,9 +292,14 @@ class SimpleLocationService {
         return false;
       }
 
-      // Test server connectivity by making a simple GET request to the root
-      // This avoids sending any location data that could interfere with actual tracking
-      final url = Uri.parse(serverUrl);
+      // Test server connectivity by making a request to the tracking endpoint without location data
+      // This tests the actual endpoint but avoids sending coordinates that could interfere with tracking
+      final testData = {
+        'id': deviceId,
+        'test': 'connection', // Mark as connection test only
+      };
+      
+      final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
       developer.log('Testing connection to: $url');
       
       final response = await http.get(url).timeout(
@@ -299,8 +310,7 @@ class SimpleLocationService {
       );
 
       developer.log('Server connection test: ${response.statusCode}');
-      // Traccar returns 200 for valid tracking requests
-      // We send a test request with valid format, so 200 means server is working
+      // Traccar returns 200 for valid requests, even without location data
       return response.statusCode == 200;
     } catch (error) {
       developer.log('Server connection test failed: $error');
