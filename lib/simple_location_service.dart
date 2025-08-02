@@ -4,6 +4,7 @@ import 'dart:developer' as developer;
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:battery_plus/battery_plus.dart';
 import 'package:traccar_client/preferences.dart';
 
 class SimpleLocationService {
@@ -137,6 +138,15 @@ class SimpleLocationService {
         return;
       }
 
+      // Get battery level
+      final battery = Battery();
+      int batteryLevel = 0;
+      try {
+        batteryLevel = await battery.batteryLevel;
+      } catch (e) {
+        developer.log('Failed to get battery level: $e');
+      }
+
       // Prepare location data for Traccar
       final locationData = {
         'id': deviceId,
@@ -147,6 +157,7 @@ class SimpleLocationService {
         'speed': position.speed,
         'bearing': position.heading,
         'accuracy': position.accuracy,
+        'batt': batteryLevel, // Battery level percentage
       };
 
       // Send to Traccar server using OsmAnd protocol (simple HTTP GET)
