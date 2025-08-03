@@ -42,40 +42,6 @@ jobs:
           flutter create --platforms=android temp_app
           cd ..
           
-          # Create the FlutterApplication.java file
-          mkdir -p android/app/src/main/java/io/flutter/app/
-          cat > android/app/src/main/java/io/flutter/app/FlutterApplication.java << 'EOF'
-          package io.flutter.app;
-          
-          import android.app.Application;
-          import android.content.Context;
-          import io.flutter.view.FlutterMain;
-          
-          /**
-           * Flutter implementation of {@link android.app.Application}, managing
-           * application-level global initializations.
-           */
-          public class FlutterApplication extends Application {
-            @Override
-            public void onCreate() {
-              super.onCreate();
-              FlutterMain.startInitialization(this);
-            }
-          
-            private static FlutterApplication application;
-          
-            public static FlutterApplication getInstance() {
-              return application;
-            }
-          
-            @Override
-            protected void attachBaseContext(Context base) {
-              super.attachBaseContext(base);
-              application = this;
-            }
-          }
-          EOF
-          
           # Copy the io.flutter.* packages from the temp project
           mkdir -p android/app/src/main/java/io/flutter/embedding/
           mkdir -p android/app/src/main/java/io/flutter/plugins/
