@@ -25,18 +25,66 @@ jobs:
           flutter-version: '3.19.3'
           channel: 'stable'
           cache: true
+          
+      - name: Set Flutter SDK version
+        run: |
+          echo "Setting Flutter SDK version to match pubspec.yaml"
+          sed -i 's/^  sdk: \^3.2.0/  sdk: ">=3.2.0 <4.0.0"/' pubspec.yaml
 
       - name: Get dependencies
         run: flutter pub get
 
       - name: Fix Flutter embedding
         run: |
+          # Create a temporary Flutter project to get the correct embedding files
           mkdir -p temp_project
           cd temp_project
           flutter create --platforms=android temp_app
           cd ..
-          cp -r temp_project/temp_app/android/app/src/main/java/com/example/temp_app/MainActivity.* android/app/src/main/java/org/traccar/client/
-          cp -r temp_project/temp_app/android/app/src/main/java/io android/app/src/main/java/
+          
+          # Create the FlutterApplication.java file
+          mkdir -p android/app/src/main/java/io/flutter/app/
+          cat > android/app/src/main/java/io/flutter/app/FlutterApplication.java << 'EOF'
+          package io.flutter.app;
+          
+          import android.app.Application;
+          import android.content.Context;
+          import io.flutter.view.FlutterMain;
+          
+          /**
+           * Flutter implementation of {@link android.app.Application}, managing
+           * application-level global initializations.
+           */
+          public class FlutterApplication extends Application {
+            @Override
+            public void onCreate() {
+              super.onCreate();
+              FlutterMain.startInitialization(this);
+            }
+          
+            private static FlutterApplication application;
+          
+            public static FlutterApplication getInstance() {
+              return application;
+            }
+          
+            @Override
+            protected void attachBaseContext(Context base) {
+              super.attachBaseContext(base);
+              application = this;
+            }
+          }
+          EOF
+          
+          # Copy the io.flutter.* packages from the temp project
+          mkdir -p android/app/src/main/java/io/flutter/embedding/
+          mkdir -p android/app/src/main/java/io/flutter/plugins/
+          mkdir -p android/app/src/main/java/io/flutter/view/
+          
+          # Copy the GeneratedPluginRegistrant.java file
+          cp -r temp_project/temp_app/android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java android/app/src/main/java/io/flutter/plugins/ || true
+          
+          # Clean up
           rm -rf temp_project
           
       - name: Build APK
