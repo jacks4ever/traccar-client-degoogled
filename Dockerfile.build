@@ -1,0 +1,14 @@
+FROM ghcr.io/cirruslabs/flutter:3.22.0
+
+WORKDIR /app
+
+# Copy the Flutter project
+COPY . .
+
+# Get dependencies
+RUN flutter pub get
+
+# Build APK
+RUN flutter build apk --release
+
+# The APK will be in /app/build/app/outputs/flutter-apk/app-release.apk

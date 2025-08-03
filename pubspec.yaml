@@ -12,20 +12,20 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: any
-  geolocator: ^13.0.1
-  shared_preferences: ^2.5.3
+  geolocator: ^10.0.1
+  shared_preferences: ^2.2.2
   quick_actions: ^1.1.0
-  rate_my_app: ^2.3.2
-  shared_preferences_android: ^2.4.7
-  mobile_scanner: ^6.0.0
-  flutter_secure_storage: ^9.2.4
-  http: ^1.2.2
-  battery_plus: ^6.0.2
+  rate_my_app: ^2.2.0
+  shared_preferences_android: ^2.2.1
+  mobile_scanner: ^3.5.5
+  flutter_secure_storage: ^8.0.0
+  http: ^1.1.0
+  battery_plus: ^4.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
+  flutter_lints: ^2.0.0
 
 flutter:
   uses-material-design: true
