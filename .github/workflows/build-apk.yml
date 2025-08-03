@@ -29,6 +29,16 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Fix Flutter embedding
+        run: |
+          mkdir -p temp_project
+          cd temp_project
+          flutter create --platforms=android temp_app
+          cd ..
+          cp -r temp_project/temp_app/android/app/src/main/java/com/example/temp_app/MainActivity.* android/app/src/main/java/org/traccar/client/
+          cp -r temp_project/temp_app/android/app/src/main/java/io android/app/src/main/java/
+          rm -rf temp_project
+          
       - name: Build APK
         run: flutter build apk --release
 
