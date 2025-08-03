@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:battery_plus/battery_plus.dart';
+import 'package:traccar_client/main.dart';
 import 'package:traccar_client/preferences.dart';
 
 class SimpleLocationService {
@@ -47,7 +49,6 @@ class SimpleLocationService {
     if (_isTracking) return;
 
     try {
-      _isTracking = true;
       developer.log('Starting location tracking');
 
       // Get tracking interval from preferences (default 30 seconds)
@@ -60,10 +61,15 @@ class SimpleLocationService {
 
       // Also send initial location immediately
       await _getCurrentLocationAndSend();
+      
+      // Use the setter to update tracking state
+      isTracking = true;
 
     } catch (error) {
       developer.log('Error starting tracking: $error');
-      _isTracking = false;
+      // Clean up if there was an error
+      _locationTimer?.cancel();
+      _locationTimer = null;
       rethrow;
     }
   }
@@ -73,13 +79,15 @@ class SimpleLocationService {
     if (!_isTracking) return;
 
     developer.log('Stopping location tracking');
-    _isTracking = false;
     
     _locationTimer?.cancel();
     _locationTimer = null;
     
     await _positionStream?.cancel();
     _positionStream = null;
+    
+    // Use the setter which handles auto-enable logic
+    isTracking = false;
   }
 
   /// Send a single location update (for SOS or manual requests)
@@ -193,6 +201,53 @@ class SimpleLocationService {
 
   /// Check if currently tracking
   static bool get isTracking => _isTracking;
+  
+  /// Set tracking state with auto-enable check
+  static set isTracking(bool value) {
+    final oldValue = _isTracking;
+    _isTracking = value;
+    
+    // If tracking was disabled and auto-enable is on, restart it after a delay
+    if (oldValue && !value) {
+      final autoEnable = Preferences.instance.getBool(Preferences.autoEnableTracking) ?? true;
+      if (autoEnable) {
+        developer.log('Auto-enable tracking is enabled, scheduling restart from setter...');
+        // Schedule restart after a short delay
+        Timer(const Duration(seconds: 5), () async {
+          developer.log('Auto-restarting tracking from setter...');
+          try {
+            await startTracking();
+            developer.log('Tracking auto-restarted successfully from setter');
+            
+            // Show notification to user that tracking was auto-restarted
+            _showAutoRestartNotification();
+          } catch (error) {
+            developer.log('Failed to auto-restart tracking from setter: $error');
+          }
+        });
+      }
+    }
+  }
+  
+  /// Show notification that tracking was automatically restarted
+  static void _showAutoRestartNotification() {
+    try {
+      // Use the messenger key from main.dart to show a snackbar
+      // This will only work if the app is in the foreground
+      // For background notifications, a proper notification system would be needed
+      if (messengerKey.currentState != null) {
+        messengerKey.currentState!.showSnackBar(
+          const SnackBar(
+            content: Text('Tracking was automatically re-enabled'),
+            duration: Duration(seconds: 4),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (error) {
+      developer.log('Failed to show auto-restart notification: $error');
+    }
+  }
 
   /// Get current location status
   static Future<Map<String, dynamic>> getStatus() async {

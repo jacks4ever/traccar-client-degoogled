@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:developer' as developer;
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_background_geolocation/flutter_background_geolocation.dart' as bg;
+import 'package:traccar_client/main.dart';
 import 'package:traccar_client/preferences.dart';
 import 'package:traccar_client/push_service.dart';
 
@@ -50,11 +53,71 @@ class DegoogledGeolocationService {
     if (_isInitialized) {
       await bg.BackgroundGeolocation.stop();
       developer.log('Tracking stopped');
+      
+      // Check if auto-enable tracking is enabled
+      final autoEnable = Preferences.instance.getBool(Preferences.autoEnableTracking) ?? true;
+      if (autoEnable) {
+        developer.log('Auto-enable tracking is enabled, scheduling restart...');
+        // Schedule restart after a short delay
+        Timer(const Duration(seconds: 5), () async {
+          developer.log('Auto-restarting tracking...');
+          try {
+            await startTracking();
+            developer.log('Tracking auto-restarted successfully');
+            
+            // Show notification to user that tracking was auto-restarted
+            _showAutoRestartNotification();
+          } catch (error) {
+            developer.log('Failed to auto-restart tracking: $error');
+          }
+        });
+      }
     }
   }
 
   static void onEnabledChange(bool enabled) {
     developer.log('Geolocation enabled changed: $enabled');
+    
+    // If tracking was disabled and auto-enable is on, restart it after a delay
+    if (!enabled) {
+      final autoEnable = Preferences.instance.getBool(Preferences.autoEnableTracking) ?? true;
+      if (autoEnable) {
+        developer.log('Auto-enable tracking is enabled, scheduling restart from onEnabledChange...');
+        // Schedule restart after a short delay
+        Timer(const Duration(seconds: 5), () async {
+          developer.log('Auto-restarting tracking from onEnabledChange...');
+          try {
+            await startTracking();
+            developer.log('Tracking auto-restarted successfully from onEnabledChange');
+            
+            // Show notification to user that tracking was auto-restarted
+            _showAutoRestartNotification();
+          } catch (error) {
+            developer.log('Failed to auto-restart tracking from onEnabledChange: $error');
+          }
+        });
+      }
+    }
+  }
+  
+  /// Show notification that tracking was automatically restarted
+  static void _showAutoRestartNotification() {
+    try {
+      // Use the messenger key from main.dart to show a snackbar
+      // This will only work if the app is in the foreground
+      // For background notifications, a proper notification system would be needed
+      if (messengerKey.currentState != null) {
+        messengerKey.currentState!.showSnackBar(
+          const SnackBar(
+            content: Text('Tracking was automatically re-enabled'),
+            duration: Duration(seconds: 4),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (error) {
+      developer.log('Failed to show auto-restart notification: $error');
+    }
   }
 
   static void onMotionChange(bg.Location location) {
