@@ -160,7 +160,7 @@ class _SimpleStatusScreenState extends State<SimpleStatusScreen> {
             _buildConfigCard(),
             const SizedBox(height: 32),
             Text(
-              'Simple Degoogled Traccar Client v9.5.2d\nNative GPS Location Service',
+              'Simple Degoogled Traccar Client v9.5.2e\nNative GPS Location Service',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

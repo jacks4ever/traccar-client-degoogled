@@ -1,9 +1,9 @@
 name: traccar_client
 description: "Traccar Client"
 publish_to: 'none'
-# Keep numeric package version aligned with visible app version v9.5.2d
-# Suffix 'd' is shown in UI only; Flutter pubspec cannot include letters in version.
-version: 9.5.2+114
+# Keep numeric package version aligned with visible app version v9.5.2e
+# Suffix 'e' is shown in UI only; Flutter pubspec cannot include letters in version.
+version: 9.5.2+115
 
 environment:
   sdk: ">=3.2.0 <4.0.0"

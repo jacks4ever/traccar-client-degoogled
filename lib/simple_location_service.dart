@@ -24,8 +24,11 @@ class SimpleLocationService {
   static Position? _pendingLatest;
   
   static Timer? _heartbeatTimer;
+  static Timer? _freshGpsTimer;
   static int _failedRequestCount = 0;
   static const int _maxRetries = 3;
+  static const int _freshGpsIntervalMinutes = 5; // Send fresh GPS every 5 minutes
+  static const int _movementFreshGpsIntervalMinutes = 2; // More frequent when moving
 
   /// Check and request location permissions on app startup
   static Future<bool> requestPermissions() async {
@@ -106,6 +109,12 @@ class SimpleLocationService {
 
       // Start heartbeat timer to ensure tracking stays alive
       _startHeartbeat();
+      
+      // Start fresh GPS timer to ensure regular fresh GPS readings
+      _startFreshGpsTimer();
+      
+      // Send an immediate fresh GPS reading when tracking starts
+      _sendFreshGpsReading();
 
       isTracking = true;
       developer.log('Location tracking started successfully');
@@ -132,6 +141,9 @@ class SimpleLocationService {
     
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
+    
+    _freshGpsTimer?.cancel();
+    _freshGpsTimer = null;
     
     await _positionStream?.cancel();
     _positionStream = null;
@@ -178,6 +190,15 @@ class SimpleLocationService {
       // Always update last known position for status queries
       _lastKnownPosition = p;
       _lastPositionTime = DateTime.now();
+      
+      // Check if movement state changed and restart fresh GPS timer with appropriate interval
+      final wasMoving = _lastSentPosition?.speed != null && _lastSentPosition!.speed > 1.0;
+      final isMoving = p.speed > 1.0;
+      
+      if (wasMoving != isMoving) {
+        developer.log('Movement state changed: ${wasMoving ? 'moving' : 'stationary'} -> ${isMoving ? 'moving' : 'stationary'}');
+        _startFreshGpsTimer(); // Restart with new interval
+      }
       
       if (!_shouldSend(p)) return;
       _pendingLatest = p;
@@ -235,7 +256,62 @@ class SimpleLocationService {
     });
   }
 
-  /// Send heartbeat to server
+  /// Start fresh GPS timer to ensure regular fresh GPS readings
+  static void _startFreshGpsTimer() {
+    _freshGpsTimer?.cancel();
+    
+    // Determine interval based on movement state
+    final isMoving = _lastKnownPosition?.speed != null && _lastKnownPosition!.speed > 1.0; // > 1 m/s
+    final intervalMinutes = isMoving ? _movementFreshGpsIntervalMinutes : _freshGpsIntervalMinutes;
+    
+    _freshGpsTimer = Timer.periodic(Duration(minutes: intervalMinutes), (timer) {
+      if (_isTracking) {
+        developer.log('Fresh GPS timer: Requesting fresh GPS reading');
+        _sendFreshGpsReading();
+        
+        // Restart timer with potentially different interval based on current movement
+        _startFreshGpsTimer();
+      } else {
+        timer.cancel();
+      }
+    });
+    
+    developer.log('Fresh GPS timer started with ${intervalMinutes}min interval');
+  }
+
+  /// Send a fresh GPS reading to server (bypasses normal filtering)
+  static Future<void> _sendFreshGpsReading() async {
+    try {
+      developer.log('Getting fresh GPS position for continuous tracking...');
+      
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 20),
+        forceAndroidLocationManager: true,
+      );
+
+      developer.log('Fresh GPS position obtained: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m, speed: ${position.speed}m/s)');
+      
+      // Always send fresh GPS readings regardless of filtering rules
+      await _sendLocationToServerWithRetry(position);
+      
+      // Update cached position
+      _lastKnownPosition = position;
+      _lastPositionTime = DateTime.now();
+      
+      developer.log('Fresh GPS reading sent to server successfully');
+    } catch (error) {
+      developer.log('Error getting fresh GPS reading: $error');
+      
+      // If fresh GPS fails, try to send cached position if available
+      if (_lastKnownPosition != null) {
+        developer.log('Sending cached position as fallback');
+        await _sendLocationToServerWithRetry(_lastKnownPosition!);
+      }
+    }
+  }
+
+  /// Send heartbeat to server (includes location data if available)
   static Future<void> _sendHeartbeat() async {
     try {
       final serverUrl = Preferences.instance.getString(Preferences.url);
@@ -243,10 +319,57 @@ class SimpleLocationService {
       
       if (serverUrl == null || deviceId == null) return;
 
-      final heartbeatData = {
-        'id': deviceId,
-        'heartbeat': DateTime.now().millisecondsSinceEpoch,
-      };
+      // Try to get current position for heartbeat, but don't wait too long
+      Position? currentPosition;
+      try {
+        currentPosition = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high,
+          timeLimit: const Duration(seconds: 8),
+        ).timeout(const Duration(seconds: 8));
+        
+        developer.log('Heartbeat with fresh GPS: ${currentPosition.latitude}, ${currentPosition.longitude}');
+      } catch (e) {
+        // Use cached position if fresh GPS fails
+        currentPosition = _lastKnownPosition;
+        developer.log('Heartbeat using cached position: ${currentPosition?.latitude}, ${currentPosition?.longitude}');
+      }
+
+      Map<String, dynamic> heartbeatData;
+      
+      if (currentPosition != null) {
+        // Send heartbeat with location data
+        final battery = Battery();
+        int batteryLevel = 0;
+        try {
+          batteryLevel = await battery.batteryLevel;
+        } catch (e) {
+          developer.log('Failed to get battery level for heartbeat: $e');
+        }
+
+        heartbeatData = {
+          'id': deviceId,
+          'lat': currentPosition.latitude,
+          'lon': currentPosition.longitude,
+          'timestamp': DateTime.now().millisecondsSinceEpoch,
+          'altitude': currentPosition.altitude,
+          'speed': currentPosition.speed,
+          'bearing': currentPosition.heading,
+          'accuracy': currentPosition.accuracy,
+          'batt': batteryLevel,
+          'battery': batteryLevel,
+          'heartbeat': true, // Mark as heartbeat
+        };
+        
+        // Update cached position
+        _lastKnownPosition = currentPosition;
+        _lastPositionTime = DateTime.now();
+      } else {
+        // Send basic heartbeat without location
+        heartbeatData = {
+          'id': deviceId,
+          'heartbeat': DateTime.now().millisecondsSinceEpoch,
+        };
+      }
 
       final url = Uri.parse('$serverUrl/?${_buildQueryString(heartbeatData)}');
       
@@ -258,7 +381,7 @@ class SimpleLocationService {
       );
 
       if (response.statusCode == 200) {
-        developer.log('Heartbeat sent successfully');
+        developer.log('Heartbeat sent successfully ${currentPosition != null ? 'with location data' : 'without location'}');
       }
     } catch (error) {
       developer.log('Heartbeat failed: $error');

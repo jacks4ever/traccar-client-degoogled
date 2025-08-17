@@ -1,5 +1,22 @@
 # Changelog
 
+## v9.5.2e (2025-08-17)
+
+### Enhanced Continuous Tracking
+- **Fresh GPS Timer**: Added automatic fresh GPS readings every 5 minutes (stationary) or 2 minutes (moving)
+- **Movement-Adaptive Intervals**: Tracking frequency automatically adjusts based on movement detection
+- **Enhanced Heartbeat**: Heartbeat now includes location data when available, ensuring regular server updates
+- **Immediate GPS on Start**: Fresh GPS reading sent immediately when tracking starts
+- **Improved Reliability**: Better handling of GPS failures with fallback to cached positions
+- **Movement State Detection**: Automatic detection of movement state changes to optimize tracking intervals
+
+### Technical Improvements
+- Added `_freshGpsTimer` for regular fresh GPS readings regardless of movement
+- Enhanced `_sendHeartbeat()` to include location data and battery information
+- Improved `_handleStreamPosition()` with movement state change detection
+- Added `_sendFreshGpsReading()` method that bypasses normal filtering rules
+- Better error handling and fallback mechanisms for GPS failures
+
 ## v9.5.4 (2025-08-17)
 
 ### Removed
