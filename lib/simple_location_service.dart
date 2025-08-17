@@ -295,44 +295,9 @@ class SimpleLocationService {
   /// Check if currently tracking
   static bool get isTracking => _isTracking;
   
-  /// Set tracking state with auto-enable check
+  /// Set tracking state
   static set isTracking(bool value) {
-    final oldValue = _isTracking;
     _isTracking = value;
-    
-    if (oldValue && !value) {
-      final autoEnable = Preferences.instance.getBool(Preferences.autoEnableTracking) ?? true;
-      if (autoEnable) {
-        developer.log('Auto-enable tracking is enabled, scheduling restart from setter...');
-        Timer(const Duration(seconds: 5), () async {
-          developer.log('Auto-restarting tracking from setter...');
-          try {
-            await startTracking();
-            developer.log('Tracking auto-restarted successfully from setter');
-            _showAutoRestartNotification();
-          } catch (error) {
-            developer.log('Failed to auto-restart tracking from setter: $error');
-          }
-        });
-      }
-    }
-  }
-  
-  /// Show notification that tracking was automatically restarted
-  static void _showAutoRestartNotification() {
-    try {
-      if (messengerKey.currentState != null) {
-        messengerKey.currentState!.showSnackBar(
-          const SnackBar(
-            content: Text('Tracking was automatically re-enabled'),
-            duration: Duration(seconds: 4),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (error) {
-      developer.log('Failed to show auto-restart notification: $error');
-    }
   }
 
   /// Get current location status

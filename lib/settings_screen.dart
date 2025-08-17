@@ -232,16 +232,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               },
             ),
           if (advanced)
-            SwitchListTile(
-              title: const Text('Auto-Enable Tracking'),
-              subtitle: const Text('Automatically re-enable tracking if it gets disabled'),
-              value: Preferences.instance.getBool(Preferences.autoEnableTracking) ?? true,
-              onChanged: (value) async {
-                await Preferences.instance.setBool(Preferences.autoEnableTracking, value);
-                setState(() {});
-              },
-            ),
-          if (advanced)
             ListTile(
               title: Text(AppLocalizations.of(context)!.passwordLabel),
               onTap: _changePassword,

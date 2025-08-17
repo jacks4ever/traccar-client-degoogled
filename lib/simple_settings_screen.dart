@@ -137,15 +137,6 @@ class _SimpleSettingsScreenState extends State<SimpleSettingsScreen> {
     return Column(
       children: [
         const Divider(),
-        SwitchListTile(
-          title: const Text('Auto-Enable Tracking'),
-          subtitle: const Text('Automatically re-enable tracking if it gets disabled'),
-          value: Preferences.instance.getBool(Preferences.autoEnableTracking) ?? true,
-          onChanged: (value) async {
-            await Preferences.instance.setBool(Preferences.autoEnableTracking, value);
-            setState(() {});
-          },
-        ),
         ListTile(
           title: const Text('Distance Filter'),
           subtitle: Text('${Preferences.instance.getInt(Preferences.distance) ?? 0}m'),

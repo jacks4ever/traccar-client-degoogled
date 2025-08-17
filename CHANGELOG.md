@@ -1,5 +1,12 @@
 # Changelog
 
+## v9.5.4 (2025-08-17)
+
+### Removed
+- Auto-enable tracking feature: removed automatic re-enabling of tracking when disabled
+- Removed auto-enable tracking settings from both simple and advanced settings screens
+- Removed notification when tracking was automatically re-enabled
+
 ## v9.5.3 (2025-08-03)
 
 ### Added
