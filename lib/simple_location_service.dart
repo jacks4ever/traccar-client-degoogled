@@ -1,10 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:battery_plus/battery_plus.dart';
@@ -467,14 +465,4 @@ class SimpleLocationService {
       return false;
     }
   }
-}
-
-class TimeoutException implements Exception {
-  final String message;
-  final Duration timeout;
-  
-  const TimeoutException(this.message, this.timeout);
-  
-  @override
-  String toString() => 'TimeoutException: $message';
 }
