@@ -401,6 +401,7 @@ class SimpleLocationService {
       'bearing': position.heading,
       'accuracy': position.accuracy,
       'batt': batteryLevel,
+      'battery': batteryLevel,
     };
 
     final url = Uri.parse('$serverUrl/?${_buildQueryString(locationData)}');

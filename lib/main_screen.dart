@@ -515,7 +515,7 @@ class _MainScreenState extends State<MainScreen> {
                               'is_moving': false,
                               'event': 'manual_force_native_cached',
                               'extras': {'method': 'native_cached', 'provider': lastKnown['provider']},
-                              'battery': {'level': 0.0, 'is_charging': false}, // Dummy battery data
+                              // Battery will be reported by SimpleLocationService when sending via OsmAnd
                               'activity': {'type': 'unknown', 'confidence': 0}, // Dummy activity data
                             };
                             
@@ -549,7 +549,7 @@ class _MainScreenState extends State<MainScreen> {
                                 'is_moving': false,
                                 'event': 'manual_force_native_fresh',
                                 'extras': {'method': 'native_fresh', 'provider': freshLocation['provider']},
-                                'battery': {'level': 0.0, 'is_charging': false}, // Dummy battery data
+                                // Battery will be reported by SimpleLocationService when sending via OsmAnd
                                 'activity': {'type': 'unknown', 'confidence': 0}, // Dummy activity data
                               };
                               
