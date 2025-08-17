@@ -93,6 +93,7 @@ class Preferences {
 
 
 
+  // ignore: unused_element
   static String? _formatUrl(String? url) {
     if (url == null) return null;
     final uri = Uri.parse(url);

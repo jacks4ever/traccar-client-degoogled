@@ -121,6 +121,7 @@ class PermissionService {
   }
 
   /// Show dialog explaining location permission requirement
+  // ignore: unused_element
   static Future<void> _showLocationPermissionDialog(BuildContext context) async {
     return showDialog<void>(
       context: context,
@@ -146,6 +147,7 @@ class PermissionService {
   }
 
   /// Show dialog explaining background location permission
+  // ignore: unused_element
   static Future<void> _showBackgroundLocationDialog(BuildContext context) async {
     return showDialog<void>(
       context: context,
