@@ -56,7 +56,6 @@ class SimpleLocationService {
     try {
       developer.log('Starting location tracking (stream)');
 
-      final intervalSecs = Preferences.instance.getInt(Preferences.interval) ?? 30;
       final distanceMeters = Preferences.instance.getInt(Preferences.distance) ?? 75;
       final accuracyPref = Preferences.instance.getString(Preferences.accuracy) ?? 'medium';
       final accuracy = _mapAccuracy(accuracyPref);
