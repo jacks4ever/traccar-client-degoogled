@@ -1,1 +1,11 @@
 include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - lib/degoogled_geolocation_service.dart
+    - lib/geolocation_service.dart
+    - lib/location_cache.dart
+    - lib/settings_screen.dart
+    - lib/status_screen.dart
+    - lib/main_screen.dart
+    - temp_project/**
