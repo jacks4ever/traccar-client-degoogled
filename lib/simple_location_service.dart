@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
+import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,12 +16,17 @@ class SimpleLocationService {
   static bool _isTracking = false;
   static StreamSubscription<Position>? _positionStream;
 
+  static Position? _lastSentPosition;
+  static DateTime? _lastSentAt;
+
+  static Timer? _coalesceTimer;
+  static Position? _pendingLatest;
+
   /// Check and request location permissions on app startup
   static Future<bool> requestPermissions() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       developer.log('Location services are disabled');
@@ -49,27 +56,42 @@ class SimpleLocationService {
     if (_isTracking) return;
 
     try {
-      developer.log('Starting location tracking');
+      developer.log('Starting location tracking (stream)');
 
-      // Get tracking interval from preferences (default 30 seconds)
-      final interval = Preferences.instance.getInt(Preferences.interval) ?? 30;
-      
-      // Start periodic location updates
-      _locationTimer = Timer.periodic(Duration(seconds: interval), (timer) async {
-        await _getCurrentLocationAndSend();
-      });
+      final intervalSecs = Preferences.instance.getInt(Preferences.interval) ?? 30;
+      final distanceMeters = Preferences.instance.getInt(Preferences.distance) ?? 75;
+      final accuracyPref = Preferences.instance.getString(Preferences.accuracy) ?? 'medium';
+      final accuracy = _mapAccuracy(accuracyPref);
 
-      // Also send initial location immediately
-      await _getCurrentLocationAndSend();
-      
-      // Use the setter to update tracking state
+      await _positionStream?.cancel();
+      if (Platform.isAndroid) {
+        final settings = AndroidSettings(
+          accuracy: accuracy,
+          distanceFilter: distanceMeters,
+          intervalDuration: Duration(seconds: intervalSecs),
+          forceLocationManager: true,
+        );
+        _positionStream = Geolocator.getPositionStream(locationSettings: settings).listen(
+          _handleStreamPosition,
+          onError: (e) => developer.log('Stream error: $e'),
+        );
+      } else {
+        final settings = LocationSettings(
+          accuracy: accuracy,
+          distanceFilter: distanceMeters,
+          intervalDuration: Duration(seconds: intervalSecs),
+        );
+        _positionStream = Geolocator.getPositionStream(locationSettings: settings).listen(
+          _handleStreamPosition,
+          onError: (e) => developer.log('Stream error: $e'),
+        );
+      }
+
       isTracking = true;
-
     } catch (error) {
       developer.log('Error starting tracking: $error');
-      // Clean up if there was an error
-      _locationTimer?.cancel();
-      _locationTimer = null;
+      await _positionStream?.cancel();
+      _positionStream = null;
       rethrow;
     }
   }
@@ -78,15 +100,18 @@ class SimpleLocationService {
   static Future<void> stopTracking() async {
     if (!_isTracking) return;
 
-    developer.log('Stopping location tracking');
+    developer.log('Stopping location tracking (stream)');
     
     _locationTimer?.cancel();
     _locationTimer = null;
     
     await _positionStream?.cancel();
     _positionStream = null;
+
+    _coalesceTimer?.cancel();
+    _coalesceTimer = null;
+    _pendingLatest = null;
     
-    // Use the setter which handles auto-enable logic
     isTracking = false;
   }
 
@@ -100,16 +125,14 @@ class SimpleLocationService {
     try {
       developer.log('Forcing fresh GPS reading to clear any test data...');
       
-      // Get a fresh GPS position with high accuracy
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
         timeLimit: const Duration(seconds: 15),
-        forceAndroidLocationManager: true, // Force native GPS
+        forceAndroidLocationManager: true,
       );
 
       developer.log('Fresh GPS position: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)');
       
-      // Send immediately to server
       await _sendLocationToServer(position);
       
       developer.log('Fresh GPS update sent to server successfully');
@@ -119,10 +142,89 @@ class SimpleLocationService {
     }
   }
 
+  static void _handleStreamPosition(Position p) {
+    try {
+      if (!_shouldSend(p)) return;
+      _pendingLatest = p;
+      _coalesceTimer ??= Timer(const Duration(seconds: 2), () async {
+        final toSend = _pendingLatest;
+        _pendingLatest = null;
+        _coalesceTimer?.cancel();
+        _coalesceTimer = null;
+        if (toSend != null) {
+          await _sendLocationToServer(toSend);
+          _lastSentPosition = toSend;
+          _lastSentAt = DateTime.now();
+        }
+      });
+    } catch (e) {
+      developer.log('Error handling stream position: $e');
+    }
+  }
+
+  static bool _shouldSend(Position current) {
+    final isHighestAccuracy = (Preferences.instance.getString(Preferences.accuracy) ?? 'medium') == 'highest';
+    final distanceFilter = Preferences.instance.getInt(Preferences.distance) ?? 0;
+    final intervalFilter = Preferences.instance.getInt(Preferences.interval) ?? 0;
+    final fastestInterval = Preferences.instance.getInt(Preferences.fastestInterval);
+
+    if (_lastSentPosition == null) return true;
+
+    final last = _lastSentPosition!;
+    final now = DateTime.now();
+    final since = _lastSentAt != null ? now.difference(_lastSentAt!).inSeconds : 1 << 30;
+
+    if (!isHighestAccuracy && fastestInterval != null && since < fastestInterval) return false;
+
+    final dist = _haversine(last.latitude, last.longitude, current.latitude, current.longitude);
+
+    if (distanceFilter > 0 && dist >= distanceFilter) return true;
+
+    if (distanceFilter == 0 || isHighestAccuracy) {
+      if (intervalFilter > 0 && since >= intervalFilter) return true;
+    }
+
+    final angleFilter = Preferences.instance.getInt(Preferences.angle) ?? 0;
+    final lastHeading = last.heading;
+    final currHeading = current.heading;
+    if (isHighestAccuracy && angleFilter > 0 && lastHeading >= 0 && currHeading >= 0) {
+      final angle = (currHeading - lastHeading).abs();
+      if (angle >= angleFilter) return true;
+    }
+
+    return false;
+  }
+
+  static LocationAccuracy _mapAccuracy(String pref) {
+    switch (pref) {
+      case 'highest':
+        return LocationAccuracy.best;
+      case 'medium':
+        return LocationAccuracy.high;
+      case 'low':
+        return LocationAccuracy.low;
+      default:
+        return LocationAccuracy.high;
+    }
+  }
+
+  static double _haversine(double lat1, double lon1, double lat2, double lon2) {
+    const earthRadius = 6371008.8;
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
+    final sinLat = math.sin(dLat / 2);
+    final sinLon = math.sin(dLon / 2);
+    final a = sinLat * sinLat + math.cos(_degToRad(lat1)) * math.cos(_degToRad(lat2)) * sinLon * sinLon;
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return earthRadius * c;
+  }
+
+  static double _degToRad(double degree) => degree * math.pi / 180.0;
+
   /// Get current location and send to server
   static Future<void> _getCurrentLocationAndSend() async {
     try {
-      developer.log('Getting current GPS position...');
+      developer.log('Getting current GPS position (single-shot)...');
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
         timeLimit: const Duration(seconds: 10),
@@ -146,7 +248,6 @@ class SimpleLocationService {
         return;
       }
 
-      // Get battery level
       final battery = Battery();
       int batteryLevel = 0;
       try {
@@ -155,7 +256,6 @@ class SimpleLocationService {
         developer.log('Failed to get battery level: $e');
       }
 
-      // Prepare location data for Traccar
       final locationData = {
         'id': deviceId,
         'lat': position.latitude,
@@ -165,14 +265,12 @@ class SimpleLocationService {
         'speed': position.speed,
         'bearing': position.heading,
         'accuracy': position.accuracy,
-        'batt': batteryLevel, // Battery level percentage
+        'batt': batteryLevel,
       };
 
-      // Send to Traccar server using OsmAnd protocol (simple HTTP GET)
       final url = Uri.parse('$serverUrl/?${_buildQueryString(locationData)}');
       
       developer.log('Sending location to: $url');
-      developer.log('Location data: ${position.latitude}, ${position.longitude}');
       
       final response = await http.get(url).timeout(
         const Duration(seconds: 30),
@@ -207,19 +305,15 @@ class SimpleLocationService {
     final oldValue = _isTracking;
     _isTracking = value;
     
-    // If tracking was disabled and auto-enable is on, restart it after a delay
     if (oldValue && !value) {
       final autoEnable = Preferences.instance.getBool(Preferences.autoEnableTracking) ?? true;
       if (autoEnable) {
         developer.log('Auto-enable tracking is enabled, scheduling restart from setter...');
-        // Schedule restart after a short delay
         Timer(const Duration(seconds: 5), () async {
           developer.log('Auto-restarting tracking from setter...');
           try {
             await startTracking();
             developer.log('Tracking auto-restarted successfully from setter');
-            
-            // Show notification to user that tracking was auto-restarted
             _showAutoRestartNotification();
           } catch (error) {
             developer.log('Failed to auto-restart tracking from setter: $error');
@@ -232,9 +326,6 @@ class SimpleLocationService {
   /// Show notification that tracking was automatically restarted
   static void _showAutoRestartNotification() {
     try {
-      // Use the messenger key from main.dart to show a snackbar
-      // This will only work if the app is in the foreground
-      // For background notifications, a proper notification system would be needed
       if (messengerKey.currentState != null) {
         messengerKey.currentState!.showSnackBar(
           const SnackBar(
@@ -290,11 +381,9 @@ class SimpleLocationService {
         };
       }
 
-      // Test server connectivity by making a request to the tracking endpoint without location data
-      // This tests the actual endpoint but avoids sending coordinates that could interfere with tracking
       final testData = {
         'id': deviceId,
-        'test': 'connection', // Mark as connection test only
+        'test': 'connection',
       };
       
       final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
@@ -308,10 +397,8 @@ class SimpleLocationService {
       );
 
       developer.log('Server connection test: ${response.statusCode}');
-      // Traccar returns 200 for valid requests, even without location data
       final connected = response.statusCode == 200;
       
-      // Extract server host for display
       final uri = Uri.parse(serverUrl);
       final serverHost = uri.host + (uri.hasPort ? ':${uri.port}' : '');
       
@@ -358,11 +445,9 @@ class SimpleLocationService {
         return false;
       }
 
-      // Test server connectivity by making a request to the tracking endpoint without location data
-      // This tests the actual endpoint but avoids sending coordinates that could interfere with tracking
       final testData = {
         'id': deviceId,
-        'test': 'connection', // Mark as connection test only
+        'test': 'connection',
       };
       
       final url = Uri.parse('$serverUrl/?${_buildQueryString(testData)}');
@@ -376,7 +461,6 @@ class SimpleLocationService {
       );
 
       developer.log('Server connection test: ${response.statusCode}');
-      // Traccar returns 200 for valid requests, even without location data
       return response.statusCode == 200;
     } catch (error) {
       developer.log('Server connection test failed: $error');
