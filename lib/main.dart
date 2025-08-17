@@ -1,10 +1,11 @@
+// ignore_for_file: prefer_const_constructors
+
 import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:rate_my_app/rate_my_app.dart';
 import 'package:traccar_client/push_service.dart';
 import 'package:traccar_client/quick_actions.dart';
-import 'package:traccar_client/simple_location_service.dart';
 import 'package:traccar_client/permission_setup_screen.dart';
 
 import 'l10n/app_localizations.dart';

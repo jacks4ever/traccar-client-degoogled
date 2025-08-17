@@ -31,7 +31,7 @@ class NativeLocationService {
     } on PlatformException catch (e) {
       developer.log('❌ Native fallback: Platform exception: ${e.message}');
       return null;
-    } on TimeoutException catch (e) {
+    } on TimeoutException catch (_) {
       developer.log('❌ Native fallback: Timeout after ${timeoutSeconds}s');
       return null;
     } catch (e) {

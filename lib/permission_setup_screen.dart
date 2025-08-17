@@ -162,7 +162,7 @@ class _PermissionSetupScreenState extends State<PermissionSetupScreen> {
                 Text(
                   description,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.7),
+                    color: Theme.of(context).textTheme.bodySmall?.color?.withAlpha((0.7 * 255).round()),
                   ),
                 ),
               ],

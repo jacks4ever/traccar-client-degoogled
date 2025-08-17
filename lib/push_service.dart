@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer' as developer;
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:traccar_client/password_service.dart';
