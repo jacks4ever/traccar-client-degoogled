@@ -23,15 +23,16 @@ This is a modified version of the Traccar Client app with **all Google dependenc
 
 ## Download
 
-🚀 **[Download Latest APK](../../releases/download/v9.5.2d/app-release.apk)** (33.5MB) - **Full degoogled support!**
+🚀 **[Download Latest APK](../../releases/latest)** - **Enhanced Continuous Tracking!**
 
-✨ **Latest Version: v9.5.2d**
-- ✅ **GPS Location Fix** - Removed test coordinates interfering with real GPS data
-- ✅ **Battery Level Reporting** - Sends battery percentage to Traccar server
-- ✅ **Demo Server Ready** - Pre-configured with demo.traccar.org:5055
-- ✅ **Fresh GPS Button** - Manual GPS refresh to ensure accurate location
-- ✅ **Enhanced Connection Testing** - Works with both demo and local servers
-- ✅ **Native Android GPS** - Uses device's built-in AOSP location manager
+✨ **Latest Version: v9.5.2e** - **Enhanced Continuous Tracking Edition**
+- 🔄 **Continuous Fresh GPS** - Automatic fresh GPS readings every 5min (stationary) or 2min (moving)
+- 🎯 **Movement-Adaptive Tracking** - Intelligent intervals that adjust based on movement detection
+- 💓 **Enhanced Heartbeat** - Location-enabled heartbeats ensure server always has fresh data
+- ⚡ **Immediate GPS on Start** - Fresh GPS reading sent instantly when tracking begins
+- 🛡️ **Improved Reliability** - Better GPS failure handling with smart fallback mechanisms
+- 🔋 **Battery Optimized** - Less frequent updates when stationary, more when moving
+- ✅ **All Previous Features** - GPS location fix, battery reporting, demo server ready
 - ✅ **Universal Compatibility** - Works on all degoogled Android devices
 
 🔗 **[View All Releases](../../releases)** - See release notes and previous versions
@@ -43,7 +44,7 @@ If you get "App not installed" or "package appears to be invalid" errors:
 3. Restart your device and try again
 4. Make sure you have enough storage space (40MB+ free)
 
-See [DEGOOGLED_CHANGES.md](DEGOOGLED_CHANGES.md) for detailed technical information.
+See [DEGOOGLED_CHANGES.md](DEGOOGLED_CHANGES.md) for detailed technical information and [CONTINUOUS_TRACKING_IMPROVEMENTS.md](CONTINUOUS_TRACKING_IMPROVEMENTS.md) for details about the enhanced tracking features.
 
 ## Overview
 
@@ -60,6 +61,18 @@ Traccar Client Degoogled Edition is a GPS tracking app for Android devices that 
 - **Custom ROM Support**: Perfect for LineageOS, GrapheneOS, CalyxOS, LibertOS, and other privacy ROMs
 
 Simply launch the app, grant location permissions, and it will automatically connect to the demo server. For custom servers, just enter your server address and device ID.
+
+## 🔄 Enhanced Continuous Tracking (v9.5.2e)
+
+This release introduces significant improvements to ensure reliable, continuous tracking:
+
+- **🎯 Smart Intervals**: Automatically adjusts tracking frequency based on movement
+  - 5-minute intervals when stationary (speed < 1 m/s)
+  - 2-minute intervals when moving (speed ≥ 1 m/s)
+- **💓 Enhanced Heartbeat**: Heartbeat messages now include GPS location data
+- **⚡ Immediate Start**: Fresh GPS reading sent instantly when tracking begins
+- **🛡️ Failure Recovery**: Improved handling of GPS failures with smart fallbacks
+- **🔋 Battery Optimized**: Reduces unnecessary GPS usage when not moving
 
 ## Installation
 
