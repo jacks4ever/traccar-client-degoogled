@@ -66,7 +66,6 @@ class SimpleLocationService {
         final settings = AndroidSettings(
           accuracy: accuracy,
           distanceFilter: distanceMeters,
-          intervalDuration: Duration(seconds: intervalSecs),
           forceLocationManager: true,
         );
         _positionStream = Geolocator.getPositionStream(locationSettings: settings).listen(
@@ -77,7 +76,6 @@ class SimpleLocationService {
         final settings = LocationSettings(
           accuracy: accuracy,
           distanceFilter: distanceMeters,
-          intervalDuration: Duration(seconds: intervalSecs),
         );
         _positionStream = Geolocator.getPositionStream(locationSettings: settings).listen(
           _handleStreamPosition,
