@@ -18,7 +18,6 @@ class Preferences {
   static const String buffer = 'buffer';
   static const String wakelock = 'wakelock';
   static const String stopDetection = 'stop_detection';
-  static const String autoEnableTracking = 'auto_enable_tracking';
 
   static const String lastTimestamp = 'lastTimestamp';
   static const String lastLatitude = 'lastLatitude';
@@ -82,9 +81,6 @@ class Preferences {
       await instance.setBool(stopDetection, true);
     }
     
-    if (instance.getBool(autoEnableTracking) == null) {
-      await instance.setBool(autoEnableTracking, true);
-    }
     
     if (instance.getInt(fastestInterval) == null) {
       await instance.setInt(fastestInterval, 30);
