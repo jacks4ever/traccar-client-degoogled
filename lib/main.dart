@@ -38,7 +38,7 @@ class MainApp extends StatefulWidget {
   State<MainApp> createState() => _MainAppState();
 }
 
-class _MainAppState extends State<MainApp> {
+class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   RateMyApp rateMyApp = RateMyApp(minDays: 0, minLaunches: 0);
   bool _showPermissionSetup = false;
   bool _isLoading = true;
@@ -46,6 +46,7 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkInitialSetup();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await rateMyApp.init();
@@ -57,6 +58,37 @@ class _MainAppState extends State<MainApp> {
         }
       }
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    developer.log('App lifecycle state changed to: $state');
+    
+    // This helps ensure location tracking continues when app goes to background
+    switch (state) {
+      case AppLifecycleState.paused:
+        developer.log('App paused - location tracking should continue in background');
+        break;
+      case AppLifecycleState.resumed:
+        developer.log('App resumed - checking location tracking status');
+        break;
+      case AppLifecycleState.detached:
+        developer.log('App detached');
+        break;
+      case AppLifecycleState.inactive:
+        developer.log('App inactive');
+        break;
+      case AppLifecycleState.hidden:
+        developer.log('App hidden');
+        break;
+    }
   }
 
   Future<void> _checkInitialSetup() async {

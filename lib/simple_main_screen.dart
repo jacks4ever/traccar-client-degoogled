@@ -44,18 +44,18 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
     // Test server connection on startup
     _testServerConnection();
     
-    // Update location status periodically
-    _statusTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+    // Update location status periodically - but only get cached status, not fresh GPS
+    _statusTimer = Timer.periodic(const Duration(seconds: 10), (timer) async {
       if (mounted) {
-        final status = await SimpleLocationService.getStatus();
+        final status = await SimpleLocationService.getCachedStatus();
         setState(() {
           locationStatus = status;
         });
       }
     });
     
-    // Get initial status
-    final status = await SimpleLocationService.getStatus();
+    // Get initial cached status (no GPS request)
+    final status = await SimpleLocationService.getCachedStatus();
     if (mounted) {
       setState(() {
         locationStatus = status;
@@ -97,7 +97,7 @@ class _SimpleMainScreenState extends State<SimpleMainScreen> {
   }
 
   void _refreshState() async {
-    final status = await SimpleLocationService.getStatus();
+    final status = await SimpleLocationService.getCachedStatus();
     if (mounted) {
       setState(() {
         trackingEnabled = SimpleLocationService.isTracking;

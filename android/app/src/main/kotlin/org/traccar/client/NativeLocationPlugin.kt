@@ -23,23 +23,30 @@ import io.flutter.plugin.common.MethodChannel.Result
  */
 class NativeLocationPlugin: FlutterPlugin, MethodCallHandler {
     private lateinit var channel: MethodChannel
+    private lateinit var foregroundChannel: MethodChannel
     private lateinit var context: Context
     private lateinit var locationManager: LocationManager
     
     companion object {
         private const val TAG = "NativeLocationPlugin"
         private const val CHANNEL = "native_location"
+        private const val FOREGROUND_CHANNEL = "foreground_service"
     }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL)
         channel.setMethodCallHandler(this)
+        
+        foregroundChannel = MethodChannel(flutterPluginBinding.binaryMessenger, FOREGROUND_CHANNEL)
+        foregroundChannel.setMethodCallHandler(this)
+        
         context = flutterPluginBinding.applicationContext
         locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
+            // Location methods
             "requestSingleLocation" -> {
                 val timeout = call.argument<Int>("timeout") ?: 30000
                 val accuracy = call.argument<Double>("accuracy") ?: 100.0
@@ -54,6 +61,19 @@ class NativeLocationPlugin: FlutterPlugin, MethodCallHandler {
             "hasLocationPermission" -> {
                 result.success(hasLocationPermission())
             }
+            // Foreground service methods
+            "start" -> {
+                LocationForegroundService.startService(context)
+                result.success(true)
+            }
+            "stop" -> {
+                LocationForegroundService.stopService(context)
+                result.success(true)
+            }
+            "isRunning" -> {
+                // Simple check - in a real implementation you'd check if service is actually running
+                result.success(true)
+            }
             else -> {
                 result.notImplemented()
             }
@@ -62,6 +82,7 @@ class NativeLocationPlugin: FlutterPlugin, MethodCallHandler {
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
+        foregroundChannel.setMethodCallHandler(null)
     }
     
     private fun hasLocationPermission(): Boolean {

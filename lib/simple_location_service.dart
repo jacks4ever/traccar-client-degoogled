@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:battery_plus/battery_plus.dart';
 import 'package:traccar_client/main.dart';
 import 'package:traccar_client/preferences.dart';
+import 'package:traccar_client/foreground_service.dart';
 
 class SimpleLocationService {
   static Timer? _locationTimer;
@@ -16,9 +17,15 @@ class SimpleLocationService {
 
   static Position? _lastSentPosition;
   static DateTime? _lastSentAt;
+  static Position? _lastKnownPosition;
+  static DateTime? _lastPositionTime;
 
   static Timer? _coalesceTimer;
   static Position? _pendingLatest;
+  
+  static Timer? _heartbeatTimer;
+  static int _failedRequestCount = 0;
+  static const int _maxRetries = 3;
 
   /// Check and request location permissions on app startup
   static Future<bool> requestPermissions() async {
@@ -60,16 +67,25 @@ class SimpleLocationService {
       final accuracyPref = Preferences.instance.getString(Preferences.accuracy) ?? 'medium';
       final accuracy = _mapAccuracy(accuracyPref);
 
+      // Cancel any existing streams and timers
       await _positionStream?.cancel();
+      _heartbeatTimer?.cancel();
+      _coalesceTimer?.cancel();
+      
+      // Reset failure count
+      _failedRequestCount = 0;
+
       if (Platform.isAndroid) {
         final settings = AndroidSettings(
           accuracy: accuracy,
           distanceFilter: distanceMeters,
           forceLocationManager: true,
+          intervalDuration: const Duration(seconds: 5),
         );
         _positionStream = Geolocator.getPositionStream(locationSettings: settings).listen(
           _handleStreamPosition,
-          onError: (e) => developer.log('Stream error: $e'),
+          onError: _handleStreamError,
+          onDone: _handleStreamDone,
         );
       } else {
         final settings = LocationSettings(
@@ -78,15 +94,24 @@ class SimpleLocationService {
         );
         _positionStream = Geolocator.getPositionStream(locationSettings: settings).listen(
           _handleStreamPosition,
-          onError: (e) => developer.log('Stream error: $e'),
+          onError: _handleStreamError,
+          onDone: _handleStreamDone,
         );
       }
 
+      // Start foreground service for Android
+      if (Platform.isAndroid) {
+        await ForegroundService.start();
+      }
+
+      // Start heartbeat timer to ensure tracking stays alive
+      _startHeartbeat();
+
       isTracking = true;
+      developer.log('Location tracking started successfully');
     } catch (error) {
       developer.log('Error starting tracking: $error');
-      await _positionStream?.cancel();
-      _positionStream = null;
+      await _cleanup();
       rethrow;
     }
   }
@@ -96,9 +121,17 @@ class SimpleLocationService {
     if (!_isTracking) return;
 
     developer.log('Stopping location tracking (stream)');
-    
+    await _cleanup();
+    isTracking = false;
+  }
+
+  /// Clean up all resources
+  static Future<void> _cleanup() async {
     _locationTimer?.cancel();
     _locationTimer = null;
+    
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
     
     await _positionStream?.cancel();
     _positionStream = null;
@@ -107,7 +140,10 @@ class SimpleLocationService {
     _coalesceTimer = null;
     _pendingLatest = null;
     
-    isTracking = false;
+    // Stop foreground service
+    if (Platform.isAndroid) {
+      await ForegroundService.stop();
+    }
   }
 
   /// Send a single location update (for SOS or manual requests)
@@ -139,6 +175,10 @@ class SimpleLocationService {
 
   static void _handleStreamPosition(Position p) {
     try {
+      // Always update last known position for status queries
+      _lastKnownPosition = p;
+      _lastPositionTime = DateTime.now();
+      
       if (!_shouldSend(p)) return;
       _pendingLatest = p;
       _coalesceTimer ??= Timer(const Duration(seconds: 2), () async {
@@ -147,13 +187,81 @@ class SimpleLocationService {
         _coalesceTimer?.cancel();
         _coalesceTimer = null;
         if (toSend != null) {
-          await _sendLocationToServer(toSend);
+          await _sendLocationToServerWithRetry(toSend);
           _lastSentPosition = toSend;
           _lastSentAt = DateTime.now();
         }
       });
     } catch (e) {
       developer.log('Error handling stream position: $e');
+    }
+  }
+
+  static void _handleStreamError(dynamic error) {
+    developer.log('Location stream error: $error');
+    // Try to restart the stream after a delay
+    Timer(const Duration(seconds: 5), () {
+      if (_isTracking) {
+        developer.log('Attempting to restart location stream after error');
+        startTracking();
+      }
+    });
+  }
+
+  static void _handleStreamDone() {
+    developer.log('Location stream completed unexpectedly');
+    // Try to restart the stream if we're supposed to be tracking
+    if (_isTracking) {
+      Timer(const Duration(seconds: 3), () {
+        if (_isTracking) {
+          developer.log('Restarting location stream after completion');
+          startTracking();
+        }
+      });
+    }
+  }
+
+  /// Start heartbeat timer to keep tracking alive
+  static void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      if (_isTracking) {
+        developer.log('Heartbeat: Location tracking still active');
+        // Send a heartbeat to server to keep connection alive
+        _sendHeartbeat();
+      } else {
+        timer.cancel();
+      }
+    });
+  }
+
+  /// Send heartbeat to server
+  static Future<void> _sendHeartbeat() async {
+    try {
+      final serverUrl = Preferences.instance.getString(Preferences.url);
+      final deviceId = Preferences.instance.getString(Preferences.id);
+      
+      if (serverUrl == null || deviceId == null) return;
+
+      final heartbeatData = {
+        'id': deviceId,
+        'heartbeat': DateTime.now().millisecondsSinceEpoch,
+      };
+
+      final url = Uri.parse('$serverUrl/?${_buildQueryString(heartbeatData)}');
+      
+      final response = await http.get(url).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Heartbeat timeout', const Duration(seconds: 10));
+        },
+      );
+
+      if (response.statusCode == 200) {
+        developer.log('Heartbeat sent successfully');
+      }
+    } catch (error) {
+      developer.log('Heartbeat failed: $error');
     }
   }
 
@@ -232,56 +340,84 @@ class SimpleLocationService {
     }
   }
 
+  /// Send location data to Traccar server with retry mechanism
+  static Future<void> _sendLocationToServerWithRetry(Position position) async {
+    for (int attempt = 1; attempt <= _maxRetries; attempt++) {
+      try {
+        await _sendLocationToServer(position);
+        _failedRequestCount = 0; // Reset on success
+        return;
+      } catch (error) {
+        developer.log('Location send attempt $attempt failed: $error');
+        _failedRequestCount++;
+        
+        if (attempt < _maxRetries) {
+          // Wait before retry with exponential backoff
+          final delay = Duration(seconds: math.pow(2, attempt).toInt());
+          await Future.delayed(delay);
+        }
+      }
+    }
+    
+    developer.log('Failed to send location after $_maxRetries attempts');
+    
+    // If we've failed too many times, consider restarting the stream
+    if (_failedRequestCount > 10) {
+      developer.log('Too many failed requests, restarting location stream');
+      _failedRequestCount = 0;
+      if (_isTracking) {
+        await stopTracking();
+        await Future.delayed(const Duration(seconds: 5));
+        await startTracking();
+      }
+    }
+  }
+
   /// Send location data to Traccar server
   static Future<void> _sendLocationToServer(Position position) async {
+    final serverUrl = Preferences.instance.getString(Preferences.url);
+    final deviceId = Preferences.instance.getString(Preferences.id);
+    
+    if (serverUrl == null || deviceId == null) {
+      developer.log('Server URL or device ID not configured');
+      return;
+    }
+
+    final battery = Battery();
+    int batteryLevel = 0;
     try {
-      final serverUrl = Preferences.instance.getString(Preferences.url);
-      final deviceId = Preferences.instance.getString(Preferences.id);
-      
-      if (serverUrl == null || deviceId == null) {
-        developer.log('Server URL or device ID not configured');
-        return;
-      }
+      batteryLevel = await battery.batteryLevel;
+    } catch (e) {
+      developer.log('Failed to get battery level: $e');
+    }
 
-      final battery = Battery();
-      int batteryLevel = 0;
-      try {
-        batteryLevel = await battery.batteryLevel;
-      } catch (e) {
-        developer.log('Failed to get battery level: $e');
-      }
+    final locationData = {
+      'id': deviceId,
+      'lat': position.latitude,
+      'lon': position.longitude,
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'altitude': position.altitude,
+      'speed': position.speed,
+      'bearing': position.heading,
+      'accuracy': position.accuracy,
+      'batt': batteryLevel,
+    };
 
-      final locationData = {
-        'id': deviceId,
-        'lat': position.latitude,
-        'lon': position.longitude,
-        'timestamp': DateTime.now().millisecondsSinceEpoch,
-        'altitude': position.altitude,
-        'speed': position.speed,
-        'bearing': position.heading,
-        'accuracy': position.accuracy,
-        'batt': batteryLevel,
-      };
+    final url = Uri.parse('$serverUrl/?${_buildQueryString(locationData)}');
+    
+    developer.log('Sending location to: $url');
+    
+    final response = await http.get(url).timeout(
+      const Duration(seconds: 15), // Reduced timeout
+      onTimeout: () {
+        throw TimeoutException('Server request timeout', const Duration(seconds: 15));
+      },
+    );
 
-      final url = Uri.parse('$serverUrl/?${_buildQueryString(locationData)}');
-      
-      developer.log('Sending location to: $url');
-      
-      final response = await http.get(url).timeout(
-        const Duration(seconds: 30),
-        onTimeout: () {
-          throw TimeoutException('Server request timeout', const Duration(seconds: 30));
-        },
-      );
-
-      if (response.statusCode == 200) {
-        developer.log('Location sent successfully');
-      } else {
-        developer.log('Server responded with status: ${response.statusCode}');
-      }
-
-    } catch (error) {
-      developer.log('Error sending location to server: $error');
+    if (response.statusCode == 200) {
+      developer.log('Location sent successfully');
+    } else {
+      throw Exception('Server responded with status: ${response.statusCode}');
     }
   }
 
@@ -300,7 +436,27 @@ class SimpleLocationService {
     _isTracking = value;
   }
 
-  /// Get current location status
+  /// Get cached location status (no GPS request)
+  static Future<Map<String, dynamic>> getCachedStatus() async {
+    if (_lastKnownPosition != null && _lastPositionTime != null) {
+      final age = DateTime.now().difference(_lastPositionTime!).inSeconds;
+      return {
+        'tracking': _isTracking,
+        'latitude': _lastKnownPosition!.latitude,
+        'longitude': _lastKnownPosition!.longitude,
+        'accuracy': _lastKnownPosition!.accuracy,
+        'timestamp': _lastPositionTime!.toIso8601String(),
+        'age_seconds': age,
+      };
+    } else {
+      return {
+        'tracking': _isTracking,
+        'error': 'No location data available',
+      };
+    }
+  }
+
+  /// Get current location status (makes fresh GPS request)
   static Future<Map<String, dynamic>> getStatus() async {
     try {
       developer.log('Getting GPS position for status...');
@@ -310,6 +466,11 @@ class SimpleLocationService {
       );
 
       developer.log('Status GPS position: ${position.latitude}, ${position.longitude} (accuracy: ${position.accuracy}m)');
+      
+      // Update cached position
+      _lastKnownPosition = position;
+      _lastPositionTime = DateTime.now();
+      
       return {
         'tracking': _isTracking,
         'latitude': position.latitude,
@@ -319,10 +480,24 @@ class SimpleLocationService {
       };
     } catch (error) {
       developer.log('Error getting GPS position for status: $error');
-      return {
-        'tracking': _isTracking,
-        'error': error.toString(),
-      };
+      // Return cached status if available
+      if (_lastKnownPosition != null && _lastPositionTime != null) {
+        final age = DateTime.now().difference(_lastPositionTime!).inSeconds;
+        return {
+          'tracking': _isTracking,
+          'latitude': _lastKnownPosition!.latitude,
+          'longitude': _lastKnownPosition!.longitude,
+          'accuracy': _lastKnownPosition!.accuracy,
+          'timestamp': _lastPositionTime!.toIso8601String(),
+          'age_seconds': age,
+          'error': 'Using cached location: ${error.toString()}',
+        };
+      } else {
+        return {
+          'tracking': _isTracking,
+          'error': error.toString(),
+        };
+      }
     }
   }
 
