@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -17,8 +15,9 @@ class Preferences {
     await prefs.setString(key, value);
   }
 
-  String? getString(String key) {
-    return prefs.then((prefs) => prefs.getString(key));
+  Future<String?> getString(String key) async {
+    final prefs = await this.prefs;
+    return prefs.getString(key);
   }
 
   // Int preferences
@@ -27,8 +26,9 @@ class Preferences {
     await prefs.setInt(key, value);
   }
 
-  int? getInt(String key) {
-    return prefs.then((prefs) => prefs.getInt(key));
+  Future<int?> getInt(String key) async {
+    final prefs = await this.prefs;
+    return prefs.getInt(key);
   }
 
   // Bool preferences
@@ -37,8 +37,9 @@ class Preferences {
     await prefs.setBool(key, value);
   }
 
-  bool? getBool(String key) {
-    return prefs.then((prefs) => prefs.getBool(key));
+  Future<bool?> getBool(String key) async {
+    final prefs = await this.prefs;
+    return prefs.getBool(key);
   }
 
   // Migration methods
@@ -103,4 +104,10 @@ class Preferences {
   static const String interval = 'update_interval';
   static const String distance = 'distance_filter';
   static const String buffer = 'buffer_preference';
+
+  // Init method
+  static Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    // You can add any initialization logic here if needed
+  }
 }
