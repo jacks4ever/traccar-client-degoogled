@@ -11,6 +11,11 @@ class Preferences {
   static const String interval = 'update_interval';
   static const String distance = 'distance_filter';
   static const String buffer = 'buffer_preference';
+  static const String fastestInterval = 'fastest_interval';
+  static const String angle = 'angle';
+  static const String heartbeat = 'heartbeat';
+  static const String wakelock = 'wakelock';
+  static const String stopDetection = 'stop_detection';
 
   Preferences._internal();
 
