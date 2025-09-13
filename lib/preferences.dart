@@ -1,95 +1,47 @@
-
+import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Preferences {
-  static late SharedPreferences instance;
+  static final Preferences _instance = Preferences._internal();
+  factory Preferences() => _instance;
+  Preferences._internal();
 
-  static const String id = 'id';
-  static const String url = 'url';
-  static const String accuracy = 'accuracy';
-  static const String distance = 'distance';
-  static const String interval = 'interval';
-  static const String angle = 'angle';
-  static const String heartbeat = 'heartbeat';
-  static const String fastestInterval = 'fastest_interval';
-  static const String buffer = 'buffer';
-  static const String wakelock = 'wakelock';
-  static const String stopDetection = 'stop_detection';
+  Future<SharedPreferences> get prefs async => SharedPreferences.getInstance();
 
-  static const String lastTimestamp = 'lastTimestamp';
-  static const String lastLatitude = 'lastLatitude';
-  static const String lastLongitude = 'lastLongitude';
-  static const String lastHeading = 'lastHeading';
-
-  static Future<void> init() async {
-    instance = await SharedPreferences.getInstance();
+  // String preferences
+  Future<void> setString(String key, String value) async {
+    final prefs = await this.prefs;
+    await prefs.setString(key, value);
   }
 
-  static Future<void> migrate() async {
-    if (Platform.isAndroid) {
-      final intervalValue = instance.getString(interval);
-      if (intervalValue != null) {
-        await instance.setInt(interval, int.tryParse(intervalValue) ?? 300);
-        await instance.remove(interval);
-      }
-      
-      final distanceValue = instance.getString(distance);
-      if (distanceValue != null) {
-        final intValue = int.tryParse(distanceValue) ?? 75;
-        await instance.setInt(distance, intValue > 0 ? intValue : 75);
-        await instance.remove(distance);
-      }
-      
-      final angleValue = instance.getString(angle);
-      if (angleValue != null) {
-        final intValue = int.tryParse(angleValue) ?? 0;
-        await instance.setInt(angle, intValue);
-        await instance.remove(angle);
-      }
-    } else {
-      await _migrate();
-    }
-    
-    if (instance.getString(id) == null) {
-      await instance.setString(id, (Random().nextInt(90000000) + 10000000).toString());
-    }
-    
-    if (instance.getString(url) == null) {
-      await instance.setString(url, 'http://demo.traccar.org:5055');
-    }
-    
-    if (instance.getString(accuracy) == null) {
-      await instance.setString(accuracy, 'medium');
-    }
-    
-    if (instance.getInt(interval) == null) {
-      await instance.setInt(interval, 300);
-    }
-    
-    if (instance.getInt(distance) == null) {
-      await instance.setInt(distance, 75);
-    }
-    
-    if (instance.getBool(buffer) == null) {
-      await instance.setBool(buffer, true);
-    }
-    
-    if (instance.getBool(stopDetection) == null) {
-      await instance.setBool(stopDetection, true);
-    }
-    
-    
-    if (instance.getInt(fastestInterval) == null) {
-      await instance.setInt(fastestInterval, 30);
-    }
+  String? getString(String key) {
+    return prefs.then((prefs) => prefs.getString(key));
   }
 
+  // Int preferences
+  Future<void> setInt(String key, int value) async {
+    final prefs = await this.prefs;
+    await prefs.setInt(key, value);
+  }
 
+  int? getInt(String key) {
+    return prefs.then((prefs) => prefs.getInt(key));
+  }
 
-  // ignore: unused_element
+  // Bool preferences
+  Future<void> setBool(String key, bool value) async {
+    final prefs = await this.prefs;
+    await prefs.setBool(key, value);
+  }
+
+  bool? getBool(String key) {
+    return prefs.then((prefs) => prefs.getBool(key));
+  }
+
+  // Migration methods
   static String? _formatUrl(String? url) {
     if (url == null) return null;
     final uri = Uri.parse(url);
@@ -97,49 +49,58 @@ class Preferences {
     return url;
   }
 
-
-
-  static Future<void> _migrate() async {
-    final oldId = instance.getString('device_id_preference');
+  Future<void> migrate() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Migrate old preferences to new keys
+    final oldId = prefs.getString('device_id_preference');
     if (oldId != null) {
-      await instance.setString(id, oldId);
-      await instance.remove('device_id_preference');
+      await prefs.setString(Preferences.id, oldId);
+      await prefs.remove('device_id_preference');
     }
     
-    final oldUrl = instance.getString('server_url_preference');
+    final oldUrl = prefs.getString('server_url_preference');
     if (oldUrl != null) {
-      await instance.setString(url, oldUrl);
-      await instance.remove('server_url_preference');
+      await prefs.setString(Preferences.url, _formatUrl(oldUrl)!);
+      await prefs.remove('server_url_preference');
     }
     
-    final oldAccuracy = instance.getString('accuracy_preference');
+    final oldAccuracy = prefs.getString('accuracy_preference');
     if (oldAccuracy != null) {
-      await instance.setString(accuracy, oldAccuracy);
-      await instance.remove('accuracy_preference');
+      await prefs.setString(Preferences.accuracy, oldAccuracy);
+      await prefs.remove('accuracy_preference');
     }
     
-    final oldIntervalString = instance.getString('frequency_preference');
+    final oldIntervalString = prefs.getString('frequency_preference');
     if (oldIntervalString != null) {
       final oldInterval = int.tryParse(oldIntervalString);
       if (oldInterval != null) {
-        await instance.setInt(interval, oldInterval);
+        await prefs.setInt(Preferences.interval, oldInterval);
       }
-      await instance.remove('frequency_preference');
+      await prefs.remove('frequency_preference');
     }
     
-    final oldDistanceString = instance.getString('distance_preference');
+    final oldDistanceString = prefs.getString('distance_preference');
     if (oldDistanceString != null) {
       final oldDistance = int.tryParse(oldDistanceString);
       if (oldDistance != null) {
-        await instance.setInt(distance, oldDistance > 0 ? oldDistance : 75);
+        await prefs.setInt(Preferences.distance, oldDistance > 0 ? oldDistance : 75);
       }
-      await instance.remove('distance_preference');
+      await prefs.remove('distance_preference');
     }
     
-    final oldBuffer = instance.getBool('buffer_preference');
+    final oldBuffer = prefs.getBool('buffer_preference');
     if (oldBuffer != null) {
-      await instance.setBool(buffer, oldBuffer);
-      await instance.remove('buffer_preference');
+      await prefs.setBool(Preferences.buffer, oldBuffer);
+      await prefs.remove('buffer_preference');
     }
   }
+
+  // Preference keys
+  static const String id = 'device_id';
+  static const String url = 'server_url';
+  static const String accuracy = 'location_accuracy';
+  static const String interval = 'update_interval';
+  static const String distance = 'distance_filter';
+  static const String buffer = 'buffer_preference';
 }

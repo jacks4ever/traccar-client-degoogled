@@ -99,7 +99,7 @@ class LocationForegroundService : Service() {
                 PowerManager.PARTIAL_WAKE_LOCK,
                 "TraccarClient::LocationWakeLock"
             )
-            wakeLock?.acquire(10 * 60 * 1000L) // 10 minutes
+            wakeLock?.acquire(30 * 60 * 1000L) // Extend to 30 minutes
             Log.d(TAG, "Wake lock acquired")
         } catch (e: Exception) {
             Log.w(TAG, "Failed to acquire wake lock", e)
