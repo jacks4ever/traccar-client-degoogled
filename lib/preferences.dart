@@ -1,56 +1,24 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class Preferences {
-  static final Preferences _instance = Preferences._internal();
-  factory Preferences() => _instance;
+  static final Preferences instance = Preferences._internal();
+  static SharedPreferences? _prefs;
+
+  // Preference keys
+  static const String id = 'device_id';
+  static const String url = 'server_url';
+  static const String accuracy = 'location_accuracy';
+  static const String interval = 'update_interval';
+  static const String distance = 'distance_filter';
+  static const String buffer = 'buffer_preference';
+
   Preferences._internal();
 
-  Future<SharedPreferences> get prefs async => SharedPreferences.getInstance();
-
-  // String preferences
-  Future<void> setString(String key, String value) async {
-    final prefs = await this.prefs;
-    await prefs.setString(key, value);
+  static Future<void> init() async {
+    _prefs = await SharedPreferences.getInstance();
   }
 
-  Future<String?> getString(String key) async {
-    final prefs = await this.prefs;
-    return prefs.getString(key);
-  }
-
-  // Int preferences
-  Future<void> setInt(String key, int value) async {
-    final prefs = await this.prefs;
-    await prefs.setInt(key, value);
-  }
-
-  Future<int?> getInt(String key) async {
-    final prefs = await this.prefs;
-    return prefs.getInt(key);
-  }
-
-  // Bool preferences
-  Future<void> setBool(String key, bool value) async {
-    final prefs = await this.prefs;
-    await prefs.setBool(key, value);
-  }
-
-  Future<bool?> getBool(String key) async {
-    final prefs = await this.prefs;
-    return prefs.getBool(key);
-  }
-
-  // Migration methods
-  static String? _formatUrl(String? url) {
-    if (url == null) return null;
-    final uri = Uri.parse(url);
-    if ((uri.path.isEmpty || uri.path == '') && !url.endsWith('/')) return '$url/';
-    return url;
-  }
-
-  Future<void> migrate() async {
+  static Future<void> migrate() async {
     final prefs = await SharedPreferences.getInstance();
     
     // Migrate old preferences to new keys
@@ -97,17 +65,20 @@ class Preferences {
     }
   }
 
-  // Preference keys
-  static const String id = 'device_id';
-  static const String url = 'server_url';
-  static const String accuracy = 'location_accuracy';
-  static const String interval = 'update_interval';
-  static const String distance = 'distance_filter';
-  static const String buffer = 'buffer_preference';
-
-  // Init method
-  static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    // You can add any initialization logic here if needed
+  static String? _formatUrl(String? url) {
+    if (url == null) return null;
+    final uri = Uri.parse(url);
+    if ((uri.path.isEmpty || uri.path == '') && !url.endsWith('/')) return '$url/';
+    return url;
   }
+
+  String? getString(String key) => _prefs?.getString(key);
+  int? getInt(String key) => _prefs?.getInt(key);
+  bool? getBool(String key) => _prefs?.getBool(key);
+
+  Future<void> setString(String key, String value) async => await _prefs?.setString(key, value);
+  Future<void> setInt(String key, int value) async => await _prefs?.setInt(key, value);
+  Future<void> setBool(String key, bool value) async => await _prefs?.setBool(key, value);
+
+  Future<void> clear() async => await _prefs?.clear();
 }
