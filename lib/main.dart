@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'l10n/app_localizations.dart';
-import 'main_screen.dart';
 
 void main() {
   runApp(MyApp());
@@ -18,9 +16,7 @@ class MyApp extends StatelessWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      supportedLocales: [
-        const Locale('en', ''),
-      ],
+      supportedLocales: AppLocalizations.supportedLocales,
       home: MainScreen(),
     );
   }

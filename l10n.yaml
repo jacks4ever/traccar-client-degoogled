@@ -6,3 +6,4 @@ l10n:
   sync_files: true
   untranslatable_strings:
     - "app_name"
+  untranslated-messages-file: untranslated_messages.txt
