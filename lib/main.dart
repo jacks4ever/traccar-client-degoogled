@@ -1,13 +1,27 @@
-/drop
-/add       l10n.yaml
-/add       lib/l10n/app_en.arb
-/add       lib/main.dart
-/add       lib/main_screen.dart
-/add       lib/preferences.dart
-/add       lib/quick_actions.dart
-/add       lib/settings_screen.dart
-/add       lib/simple_location_service.dart
-/add       lib/simple_main_screen.dart
-/add       lib/simple_settings_screen.dart
-/add       lib/simple_status_screen.dart
-/add       lib/status_screen.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_localizations.dart';
+import 'main_screen.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Traccar Client',
+      localizationsDelegates: [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: [
+        const Locale('en', ''),
+      ],
+      home: MainScreen(),
+    );
+  }
+}
