@@ -1,4 +1,1 @@
-{
-  "@@locale": "en",
-  "settingsTitle": "Settings"
-}
+flutter gen-l10n
