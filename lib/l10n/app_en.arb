@@ -1,6 +1,12 @@
-/drop
-/add       l10n.yaml
-/add       lib/l10n/app_en.arb
-/add       lib/main_screen.dart
-/add       lib/settings_screen.dart
-/add       lib/simple_location_service.dart
+{
+  "@@locale": "en",
+  "app_name": "Traccar Client",
+  "start_tracking": "Start Tracking",
+  "stop_tracking": "Stop Tracking",
+  "location_permission_denied": "Location permission denied",
+  "location_services_disabled": "Location services are disabled",
+  "settings": "Settings",
+  "accuracy": "Accuracy",
+  "interval": "Update Interval",
+  "distance_filter": "Distance Filter"
+}
