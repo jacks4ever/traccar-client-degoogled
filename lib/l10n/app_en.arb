@@ -1,2 +1,6 @@
-/drop
-/add       lib/l10n/app_en.arb
+{
+  "helloWorld": "Hello, World!",
+  "@helloWorld": {
+    "description": "The traditional first phrase for a programmer."
+  }
+}
