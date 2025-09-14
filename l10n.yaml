@@ -1,8 +1,6 @@
-l10n:
-  arb_dir: lib/l10n
-  template_arb_file: app_en.arb
-  output_localization_file: app_localizations.dart
-  output_class: AppLocalizations
-  sync_files: true
-  untranslatable_strings:
-    - "app_name"
+/drop
+/add       l10n.yaml
+/add       lib/l10n/app_en.arb
+/add       lib/main_screen.dart
+/add       lib/settings_screen.dart
+/add       lib/simple_location_service.dart
