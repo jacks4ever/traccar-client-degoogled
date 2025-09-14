@@ -1,13 +1,24 @@
-/drop
-/add       l10n.yaml
-/add       lib/l10n/app_en.arb
-/add       lib/main.dart
-/add       lib/main_screen.dart
-/add       lib/preferences.dart
-/add       lib/quick_actions.dart
-/add       lib/settings_screen.dart
-/add       lib/simple_location_service.dart
-/add       lib/simple_main_screen.dart
-/add       lib/simple_settings_screen.dart
-/add       lib/simple_status_screen.dart
-/add       lib/status_screen.dart
+import 'package:flutter/material.dart';
+import 'simple_settings_screen.dart';
+
+class MainScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Main Screen'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SimpleSettingsScreen()),
+            );
+          },
+          child: Text('Go to Settings'),
+        ),
+      ),
+    );
+  }
+}
