@@ -1,41 +1,7 @@
-{
-  "trackingTitle": "Tracking",
-  "settingsTitle": "Settings",
-  "statusTitle": "Logs",
-  "saveButton": "Save",
-  "cancelButton": "Cancel",
-  "okButton": "OK",
-  "locationButton": "Send location",
-  "statusButton": "Show status",
-  "settingsButton": "Change settings",
-  "invalidValue": "Invalid value",
-  "disabledValue": "Disabled",
-  "idLabel": "Device identifier",
-  "urlLabel": "Server URL",
-  "accuracyLabel": "Location accuracy",
-  "highestAccuracyLabel": "Highest",
-  "highAccuracyLabel": "High",
-  "mediumAccuracyLabel": "Medium",
-  "lowAccuracyLabel": "Low",
-  "intervalLabel": "Interval (seconds)",
-  "fastestIntervalLabel": "Fastest interval (seconds)",
-  "distanceLabel": "Distance (meters)",
-  "angleLabel": "Angle (degrees)",
-  "heartbeatLabel": "Stationary heartbeat (seconds)",
-  "bufferLabel": "Offline buffering",
-  "wakelockLabel": "Wake lock",
-  "stopDetectionLabel": "Stop detection",
-  "trackingLabel": "Continuous tracking",
-  "advancedLabel": "Advanced settings",
-  "passwordLabel": "Password",
-  "optimizationMessage": "To ensure reliable tracking, please disable battery optimization for this app.",
-  "passwordError": "Wrong password",
-  "startAction": "Start service",
-  "stopAction": "Stop service",
-  "sosAction": "Send SOS",
-  "appTitle": "Traccar Client",
-  "resetTitle": "Reset Settings",
-  "resetMessage": "Are you sure you want to reset all settings to default values?",
-  "resetButton": "Reset",
-  "serverLabel": "Server URL"
-}
+/drop
+/add       l10n.yaml
+/add       lib/l10n/app_en.arb
+/add       lib/main_screen.dart
+/add       lib/settings_screen.dart
+/add       lib/simple_location_service.dart
+/add       lib/status_screen.dart
