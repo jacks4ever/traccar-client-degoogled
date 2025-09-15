@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'simple_settings_screen.dart';
 
 class MainScreen extends StatelessWidget {
+  const MainScreen({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -9,15 +10,7 @@ class MainScreen extends StatelessWidget {
         title: Text('Main Screen'),
       ),
       body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => SimpleSettingsScreen()),
-            );
-          },
-          child: Text('Go to Settings'),
-        ),
+        child: Text('Welcome to the Main Screen!'),
       ),
     );
   }
